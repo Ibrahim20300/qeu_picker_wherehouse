@@ -24,6 +24,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   // تتبع الموقع الحالي لكل منتج (باستخدام الباركود كمفتاح)
   final Map<String, int> _currentLocationIndex = {};
 
+  // لتتبع دايلوج الموقع المفتوح
+  bool _isLocationDialogOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +78,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   }
 
   void _handleBarcodeScan(String barcode) {
+    // إغلاق دايلوج الموقع إذا كان مفتوحاً
+    if (_isLocationDialogOpen) {
+      Navigator.of(context).pop();
+      _isLocationDialogOpen = false;
+    }
+
     final provider = context.read<OrdersProvider>();
     final result = provider.pickItemByBarcode(barcode);
 
@@ -541,6 +550,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   void _showNextLocationOrMarkMissing(OrderItem item) {
     final currentIndex = _getCurrentLocationIndex(item);
 
+    _isLocationDialogOpen = true;
+
     showDialog(
       context: context,
       builder: (dialogContext) => _LocationNavigationDialog(
@@ -552,11 +563,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
           });
         },
         onMarkAsMissing: () {
+          _isLocationDialogOpen = false;
           Navigator.pop(dialogContext);
           context.read<OrdersProvider>().markItemAsMissing(item);
         },
       ),
-    );
+    ).then((_) {
+      // عند إغلاق الدايلوج بأي طريقة
+      _isLocationDialogOpen = false;
+    });
   }
 
   Widget _buildHiddenBarcodeField() {

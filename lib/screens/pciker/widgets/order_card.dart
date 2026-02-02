@@ -100,6 +100,14 @@ class OrderCard extends StatelessWidget {
             style: TextStyle(color: Colors.grey[600]),
           ),
         ],
+        if (order.status == OrderStatus.completed && order.bagsCount > 0) ...[
+          const Icon(Icons.shopping_bag_outlined, size: 16, color: Colors.green),
+          const SizedBox(width: 4),
+          Text(
+            '${order.bagsCount} كيس',
+            style: const TextStyle(color: Colors.green),
+          ),
+        ],
       ],
     );
   }
