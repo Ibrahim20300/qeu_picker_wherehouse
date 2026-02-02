@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
+import '../../services/invoice_service.dart';
 import 'bags_count_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -260,6 +261,40 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     return AppBar(
       title: Text('الطلب ${order.orderNumber}'),
       actions: [
+        // زر الفاتورة
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.receipt_long),
+          tooltip: 'الفاتورة',
+          onSelected: (value) {
+            if (value == 'print') {
+              _printInvoice(order);
+            } else if (value == 'share') {
+              _shareInvoice(order);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'print',
+              child: Row(
+                children: [
+                  Icon(Icons.print, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('طباعة الفاتورة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'share',
+              child: Row(
+                children: [
+                  Icon(Icons.share, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('مشاركة الفاتورة'),
+                ],
+              ),
+            ),
+          ],
+        ),
         if (order.status == OrderStatus.pending)
           TextButton(
             onPressed: () => _onStartOrder(provider),
@@ -272,6 +307,26 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
           ),
       ],
     );
+  }
+
+  Future<void> _printInvoice(OrderModel order) async {
+    try {
+      await InvoiceService.generateAndPrintInvoice(order);
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.error(context, 'حدث خطأ أثناء إنشاء الفاتورة');
+      }
+    }
+  }
+
+  Future<void> _shareInvoice(OrderModel order) async {
+    try {
+      await InvoiceService.generateAndShareInvoice(order);
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.error(context, 'حدث خطأ أثناء مشاركة الفاتورة');
+      }
+    }
   }
 
   void _onStartOrder(OrdersProvider provider) {
