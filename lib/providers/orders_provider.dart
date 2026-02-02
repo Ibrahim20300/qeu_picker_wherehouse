@@ -282,13 +282,13 @@ class OrdersProvider extends ChangeNotifier {
   }
 
   /// إكمال الطلب
-  Future<void> completeOrder(String orderId) async {
+  Future<void> completeOrder(String orderId, {int bagsCount = 0}) async {
     _isLoading = true;
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 300));
 
-    _dataService.completeOrder(orderId);
+    _dataService.completeOrder(orderId, bagsCount: bagsCount);
     loadOrders();
     _currentOrder = null;
     _lastPickResult = null;

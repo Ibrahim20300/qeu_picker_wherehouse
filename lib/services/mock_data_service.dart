@@ -37,6 +37,7 @@ class MockDataService {
         teamName: 'picker',
         password: '123456',
         role: UserRole.picker,
+        zone: '12',
       ),
     ];
 
@@ -96,14 +97,14 @@ class MockDataService {
             productId: 'p1',
             productName: 'حليب المراعي 1 لتر',
             barcode: '1234567890123',
-            location: 'A-01-02',
+            locations: ['A-01-02', 'A-01-03', 'B-02-01'],
             requiredQuantity: 5,
           ),
           OrderItem(
             productId: 'p2',
             productName: 'عصير تروبيكانا برتقال',
             barcode: '1234567890124',
-            location: 'A-02-01',
+            locations: ['A-02-01'],
             requiredQuantity: 3,
           ),
         ],
@@ -117,14 +118,14 @@ class MockDataService {
             productId: 'p3',
             productName: 'أرز بسمتي 5 كيلو',
             barcode: '1234567890125',
-            location: 'B-01-03',
+            locations: ['B-01-03', 'B-01-04'],
             requiredQuantity: 2,
           ),
           OrderItem(
             productId: 'p4',
             productName: 'زيت عافية 1.5 لتر',
             barcode: '1234567890126',
-            location: 'B-02-02',
+            locations: ['B-02-02', 'C-01-01', 'C-01-02'],
             requiredQuantity: 4,
           ),
         ],
@@ -275,12 +276,13 @@ class MockDataService {
     };
   }
 
-  void completeOrder(String orderId) {
+  void completeOrder(String orderId, {int bagsCount = 0}) {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index != -1) {
       _orders[index] = _orders[index].copyWith(
         status: OrderStatus.completed,
         completedAt: DateTime.now(),
+        bagsCount: bagsCount,
       );
     }
   }

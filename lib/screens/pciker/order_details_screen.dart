@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
+import 'bags_count_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final OrderModel order;
@@ -19,6 +20,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   final _barcodeController = TextEditingController();
   final _barcodeFocusNode = FocusNode();
   late TabController _tabController;
+
+  // تتبع الموقع الحالي لكل منتج (باستخدام الباركود كمفتاح)
+  final Map<String, int> _currentLocationIndex = {};
 
   @override
   void initState() {
@@ -150,155 +154,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   }
 
 
-  void _showNotFoundDialog(OrderItem item) {
-    final String bulkNumber = 'BULK-${item.location.split('-').first}';
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('لم أجد المنتج'),
-          ],
-        ),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              item.productName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            _buildBulkLocationBox(bulkNumber),
-            const SizedBox(height: 16),
-            Text(
-              'إذا لم تجد المنتج في الـ Bulk أيضاً، يمكنك رفع بلاغ',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('رجوع'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _showReportConfirmationDialog(item);
-            },
-            icon: const Icon(Icons.report_problem),
-            label: const Text('لم اجده'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBulkLocationBox(String bulkNumber) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.inventory_2, color: Colors.blue, size: 40),
-          const SizedBox(height: 8),
-          const Text(
-            'اذهب إلى الـ Bulk',
-            style: TextStyle(fontSize: 14, color: Colors.blue),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            bulkNumber,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-            textDirection: TextDirection.ltr,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showReportConfirmationDialog(OrderItem item) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 32),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'تأكيد رفع البلاغ',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'هل أنت متأكد من رفع بلاغ عن عدم وجود المنتج؟',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                item.productName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              SnackbarHelper.error(context, 'تم الإبلاغ عن عدم وجود ${item.productName}');
-            },
-            icon: const Icon(Icons.check),
-            label: const Text('تأكيد'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _barcodeController.removeListener(_onBarcodeChanged);
@@ -416,7 +271,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   }
 
   Future<void> _onCompleteOrder(OrdersProvider provider, OrderModel order) async {
-    await provider.completeOrder(order.id);
+    final bagsCount = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BagsCountScreen(orderNumber: order.orderNumber),
+      ),
+    );
+
+    if (bagsCount == null) return; // User cancelled
+
+    await provider.completeOrder(order.id, bagsCount: bagsCount);
     if (mounted) {
       SnackbarHelper.success(context, 'تم إكمال الطلب');
       Navigator.pop(context);
@@ -548,12 +412,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
+              final currentLocIndex = _getCurrentLocationIndex(item);
               return _OrderItemCard(
-                key: ValueKey('${item.barcode}_${item.pickedQuantity}_${item.isPicked}'),
+                key: ValueKey('${item.barcode}_${item.pickedQuantity}_${item.isPicked}_$currentLocIndex'),
                 item: item,
+                currentLocationIndex: currentLocIndex,
                 showNotFoundButton: showNotFoundButton,
-                onNotFound: () => _showNotFoundDialog(item),
-                onMarkMissing: () => _markItemAsMissing(item),
+                canMarkMissing: isInProgress,
+                onMarkMissing: () => _showNextLocationOrMarkMissing(item),
               );
             },
           ),
@@ -657,115 +523,40 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
   }
 
-  void _markItemAsMissing(OrderItem item) {
-    final String bulkNumber = 'BULK-${item.location.split('-').first}';
+  void _restoreMissingItem(OrderItem item) {
+    context.read<OrdersProvider>().unmarkItemAsMissing(item);
+    // إعادة تعيين مؤشر الموقع
+    setState(() {
+      _currentLocationIndex[item.barcode] = 0;
+    });
+    SnackbarHelper.success(context, 'تم إعادة ${item.productName} للقائمة');
+  }
+
+  /// الحصول على مؤشر الموقع الحالي للمنتج
+  int _getCurrentLocationIndex(OrderItem item) {
+    return _currentLocationIndex[item.barcode] ?? 0;
+  }
+
+  /// عرض دايلوج التنقل بين المواقع
+  void _showNextLocationOrMarkMissing(OrderItem item) {
+    final currentIndex = _getCurrentLocationIndex(item);
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 32),
-            SizedBox(width: 8),
-            Text('تأكيد المنتج المفقود'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              item.productName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.inventory_2, color: Colors.blue, size: 40),
-                  const SizedBox(height: 8),
-                  const Text(
-                  'اذهب الى  ال bulk للتأكد من عدم توفر المنتج',
-                    style: TextStyle(fontSize: 14, color: Colors.blue),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    bulkNumber,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                    textDirection: TextDirection.ltr,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.orange, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'الموقع الأصلي: ${item.location}',
-                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('رجوع'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<OrdersProvider>().markItemAsMissing(item);
-              // ScaffoldMessenger.of(context).showSnackBar(
-              //   SnackBar(
-              //     content: Text('تم تحديد ${item.productName} كمفقود'),
-              //     backgroundColor: Colors.red,
-              //     action: SnackBarAction(
-              //       label: 'تراجع',
-              //       textColor: Colors.white,
-              //       onPressed: () => _restoreMissingItem(item),
-              //     ),
-              //   ),
-              // );
-            },
-            icon: const Icon(Icons.close),
-            label: const Text('تأكيد مفقود'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
+      builder: (dialogContext) => _LocationNavigationDialog(
+        item: item,
+        initialIndex: currentIndex,
+        onLocationChanged: (newIndex) {
+          setState(() {
+            _currentLocationIndex[item.barcode] = newIndex;
+          });
+        },
+        onMarkAsMissing: () {
+          Navigator.pop(dialogContext);
+          context.read<OrdersProvider>().markItemAsMissing(item);
+        },
       ),
     );
-  }
-
-  void _restoreMissingItem(OrderItem item) {
-    context.read<OrdersProvider>().unmarkItemAsMissing(item);
-    SnackbarHelper.success(context, 'تم إعادة ${item.productName} للقائمة');
   }
 
   Widget _buildHiddenBarcodeField() {
@@ -799,17 +590,25 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 /// كارت عنصر الطلب - Widget منفصل للتنظيم
 class _OrderItemCard extends StatelessWidget {
   final OrderItem item;
-  final VoidCallback onNotFound;
+  final int currentLocationIndex;
   final VoidCallback onMarkMissing;
   final bool showNotFoundButton;
+  final bool canMarkMissing;
 
   const _OrderItemCard({
     super.key,
     required this.item,
-    required this.onNotFound,
+    required this.currentLocationIndex,
     required this.onMarkMissing,
     this.showNotFoundButton = true,
+    this.canMarkMissing = true,
   });
+
+  /// الموقع الحالي المعروض
+  String get currentLocation =>
+      item.locations.isNotEmpty && currentLocationIndex < item.locations.length
+          ? item.locations[currentLocationIndex]
+          : '';
 
   @override
   Widget build(BuildContext context) {
@@ -835,20 +634,14 @@ class _OrderItemCard extends StatelessWidget {
 
   Widget _buildImageSection() {
     return Container(
-      height: 100,
+      height: 150,
       width: double.infinity,
       color: item.isPicked ? Colors.green.withValues(alpha: 0.1) : Colors.grey[200],
       child: Stack(
         children: [
-          Center(
-            child: Icon(
-              item.isPicked ? Icons.check_circle : Icons.inventory_2_outlined,
-              size: 48,
-              color: item.isPicked ? Colors.green : Colors.grey[400],
-            ),
-          ),
+          Center(child: Image.network('https://img.ananinja.com/media/bra-public-files/services-admin/files/8ed8554c-6637-404d-b2b9-20924d3b9766?w=384&q=90')),
           _buildStatusBadge(),
-          if (showNotFoundButton && !item.isPicked) _buildNotFoundButton(),
+          if (showNotFoundButton && canMarkMissing && !item.isPicked) _buildNotFoundButton(),
         ],
       ),
     );
@@ -880,62 +673,35 @@ class _OrderItemCard extends StatelessWidget {
     return Positioned(
       top: 8,
       left: 8,
-      child: Row(
-        children: [
-          // Material(
-          //   color: Colors.orange.withValues(alpha: 0.9),
-          //   borderRadius: BorderRadius.circular(20),
-          //   child: InkWell(
-          //     onTap: onNotFound,
-          //     borderRadius: BorderRadius.circular(20),
-          //     child: const Padding(
-          //       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          //       child: Row(
-          //         mainAxisSize: MainAxisSize.min,
-          //         children: [
-          //           Icon(Icons.search, color: Colors.white, size: 14),
-          //           SizedBox(width: 4),
-          //           Text(
-          //             'Bulk',
-          //             style: TextStyle(
-          //               color: Colors.white,
-          //               fontWeight: FontWeight.bold,
-          //               fontSize: 11,
-          //             ),
-          //           ),
-          //         ],
-          //       ),
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(width: 8),
-          Material(
-            color: Colors.red.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              onTap: onMarkMissing,
-              borderRadius: BorderRadius.circular(20),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.close, color: Colors.white, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      'مفقود',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+      child: Material(
+        color: Colors.red.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onMarkMissing,
+          borderRadius: BorderRadius.circular(20),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 14,
                 ),
-              ),
+                SizedBox(width: 4),
+                Text(
+                  'مفقود',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -960,47 +726,34 @@ class _OrderItemCard extends StatelessWidget {
   }
 
   Widget _buildLocationAndQuantityRow(int remaining) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.location_on, color: Colors.blue, size: 20),
-                const SizedBox(width: 4),
-                Text(
-                  item.location,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // الموقع الحالي فقط
+        Row(
+          children: [
+            Expanded(child: _buildLocationChip(currentLocation)),
+            const SizedBox(width: 8),
+            // عدد المواقع المتبقية
+    
+          ],
         ),
-        const SizedBox(width: 8),
+        const SizedBox(height: 12),
+        // Quantity
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: item.isPicked
                 ? Colors.green.withValues(alpha: 0.1)
                 : Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Column(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                item.isPicked ? 'مكتمل' : 'متبقي',
+                item.isPicked ? 'مكتمل' : 'متبقي: ',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 14,
                   color: item.isPicked ? Colors.green : Colors.orange,
                 ),
               ),
@@ -1016,6 +769,35 @@ class _OrderItemCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLocationChip(String location) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            location,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 4),
+
+                    const Icon(Icons.location_on, color: Colors.blue, size: 18),
+
+        ],
+      ),
     );
   }
 
@@ -1292,57 +1074,58 @@ class _MissingItemCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.location_on, color: Colors.blue, size: 20),
-                              const SizedBox(width: 4),
-                              Text(
-                                item.location,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                  // Locations
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: item.locations.map((loc) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'المطلوب',
-                              style: TextStyle(fontSize: 10, color: Colors.red),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.blue, size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            loc,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
                             ),
-                            Text(
-                              '${item.requiredQuantity}',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  // Required quantity
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'المطلوب: ',
+                          style: TextStyle(fontSize: 14, color: Colors.red),
+                        ),
+                        Text(
+                          '${item.requiredQuantity}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -1365,6 +1148,143 @@ class _MissingItemCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// دايلوج التنقل بين المواقع
+class _LocationNavigationDialog extends StatefulWidget {
+  final OrderItem item;
+  final int initialIndex;
+  final Function(int) onLocationChanged;
+  final VoidCallback onMarkAsMissing;
+
+  const _LocationNavigationDialog({
+    required this.item,
+    required this.initialIndex,
+    required this.onLocationChanged,
+    required this.onMarkAsMissing,
+  });
+
+  @override
+  State<_LocationNavigationDialog> createState() => _LocationNavigationDialogState();
+}
+
+class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
+
+  bool get _isFirstLocation => _currentIndex == 0;
+  bool get _isLastLocation => _currentIndex >= widget.item.locations.length - 1;
+  String get _currentLocation => widget.item.locations[_currentIndex];
+
+  void _goToNext() {
+    if (!_isLastLocation) {
+      setState(() {
+        _currentIndex++;
+      });
+      widget.onLocationChanged(_currentIndex);
+    }
+  }
+
+  void _goToPrevious() {
+    if (!_isFirstLocation) {
+      setState(() {
+        _currentIndex--;
+      });
+      widget.onLocationChanged(_currentIndex);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.location_on, color: Colors.blue, size: 28),
+          const SizedBox(width: 8),
+          Text('الموقع ${_currentIndex + 1} من ${widget.item.locations.length}'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.item.productName,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          // أزرار التنقل والموقع
+          Row(
+            children: [
+              // زر السابق
+              IconButton(
+                onPressed: _isFirstLocation ? null : _goToPrevious,
+                icon: const Icon(Icons.arrow_back_ios),
+                color: Colors.blue,
+                disabledColor: Colors.grey[300],
+              ),
+              // الموقع الحالي
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.blue, size: 40),
+                      const SizedBox(height: 8),
+                      Text(
+                        _currentLocation,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                        textDirection: TextDirection.ltr,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // زر التالي
+              IconButton(
+                onPressed: _isLastLocation ? null : _goToNext,
+                icon: const Icon(Icons.arrow_forward_ios),
+                color: Colors.blue,
+                disabledColor: Colors.grey[300],
+              ),
+            ],
+          ),
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إغلاق'),
+        ),
+        if (_isLastLocation)
+          ElevatedButton.icon(
+            onPressed: widget.onMarkAsMissing,
+            icon: const Icon(Icons.close),
+            label: const Text('مفقود'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+      ],
     );
   }
 }

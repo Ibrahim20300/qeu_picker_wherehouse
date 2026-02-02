@@ -9,6 +9,7 @@ class UserModel {
   final String teamName;
   final String password;
   final UserRole role;
+  final String? zone;
   final bool isActive;
   final DateTime createdAt;
 
@@ -18,6 +19,7 @@ class UserModel {
     required this.teamName,
     required this.password,
     required this.role,
+    this.zone,
     this.isActive = true,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -28,6 +30,7 @@ class UserModel {
     String? teamName,
     String? password,
     UserRole? role,
+    String? zone,
     bool? isActive,
     DateTime? createdAt,
   }) {
@@ -37,6 +40,7 @@ class UserModel {
       teamName: teamName ?? this.teamName,
       password: password ?? this.password,
       role: role ?? this.role,
+      zone: zone ?? this.zone,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -49,6 +53,7 @@ class UserModel {
       'teamName': teamName,
       'password': password,
       'role': role.name,
+      'zone': zone,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -61,6 +66,7 @@ class UserModel {
       teamName: json['teamName'],
       password: json['password'],
       role: UserRole.values.firstWhere((e) => e.name == json['role']),
+      zone: json['zone'],
       isActive: json['isActive'] ?? true,
       createdAt: DateTime.parse(json['createdAt']),
     );

@@ -9,7 +9,7 @@ class OrderItem {
   final String productId;
   final String productName;
   final String barcode;
-  final String location;
+  final List<String> locations;
   final int requiredQuantity;
   int pickedQuantity;
   bool isPicked;
@@ -18,18 +18,24 @@ class OrderItem {
     required this.productId,
     required this.productName,
     required this.barcode,
-    required this.location,
+    required this.locations,
     required this.requiredQuantity,
     this.pickedQuantity = 0,
     this.isPicked = false,
   });
+
+  /// الموقع الأساسي (الأول)
+  String get primaryLocation => locations.isNotEmpty ? locations.first : '';
+
+  /// للتوافق مع الكود القديم
+  String get location => primaryLocation;
 
   Map<String, dynamic> toJson() {
     return {
       'productId': productId,
       'productName': productName,
       'barcode': barcode,
-      'location': location,
+      'locations': locations,
       'requiredQuantity': requiredQuantity,
       'pickedQuantity': pickedQuantity,
       'isPicked': isPicked,
@@ -37,11 +43,21 @@ class OrderItem {
   }
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
+    // دعم الصيغة القديمة (location) والجديدة (locations)
+    List<String> locs;
+    if (json['locations'] != null) {
+      locs = List<String>.from(json['locations']);
+    } else if (json['location'] != null) {
+      locs = [json['location']];
+    } else {
+      locs = [];
+    }
+
     return OrderItem(
       productId: json['productId'],
       productName: json['productName'],
       barcode: json['barcode'],
-      location: json['location'],
+      locations: locs,
       requiredQuantity: json['requiredQuantity'],
       pickedQuantity: json['pickedQuantity'] ?? 0,
       isPicked: json['isPicked'] ?? false,
@@ -57,6 +73,7 @@ class OrderModel {
   final String? assignedTo;
   final DateTime createdAt;
   final DateTime? completedAt;
+  final int bagsCount;
 
   OrderModel({
     required this.id,
@@ -66,6 +83,7 @@ class OrderModel {
     this.assignedTo,
     DateTime? createdAt,
     this.completedAt,
+    this.bagsCount = 0,
   }) : createdAt = createdAt ?? DateTime.now();
 
   int get totalItems => items.length;
@@ -80,6 +98,7 @@ class OrderModel {
     String? assignedTo,
     DateTime? createdAt,
     DateTime? completedAt,
+    int? bagsCount,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -89,6 +108,7 @@ class OrderModel {
       assignedTo: assignedTo ?? this.assignedTo,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
+      bagsCount: bagsCount ?? this.bagsCount,
     );
   }
 
@@ -101,6 +121,7 @@ class OrderModel {
       'assignedTo': assignedTo,
       'createdAt': createdAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
+      'bagsCount': bagsCount,
     };
   }
 
@@ -115,6 +136,7 @@ class OrderModel {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'])
           : null,
+      bagsCount: json['bagsCount'] ?? 0,
     );
   }
 
