@@ -74,6 +74,12 @@ class OrderModel {
   final DateTime createdAt;
   final DateTime? completedAt;
   final int bagsCount;
+  final String? zone;
+  final int totalZone; // إجمالي عدد الزونات (1-12)
+  final String? position;
+  final String? neighborhood; // الحي
+  final String? slotTime; // مثال: "10-12 pm"
+  final String? slotDate; // مثال: "05/12/2026"
 
   OrderModel({
     required this.id,
@@ -84,6 +90,12 @@ class OrderModel {
     DateTime? createdAt,
     this.completedAt,
     this.bagsCount = 0,
+    this.zone,
+    this.totalZone = 12,
+    this.position,
+    this.neighborhood,
+    this.slotTime,
+    this.slotDate,
   }) : createdAt = createdAt ?? DateTime.now();
 
   int get totalItems => items.length;
@@ -99,6 +111,12 @@ class OrderModel {
     DateTime? createdAt,
     DateTime? completedAt,
     int? bagsCount,
+    String? zone,
+    int? totalZone,
+    String? position,
+    String? neighborhood,
+    String? slotTime,
+    String? slotDate,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -109,6 +127,12 @@ class OrderModel {
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
       bagsCount: bagsCount ?? this.bagsCount,
+      zone: zone ?? this.zone,
+      totalZone: totalZone ?? this.totalZone,
+      position: position ?? this.position,
+      neighborhood: neighborhood ?? this.neighborhood,
+      slotTime: slotTime ?? this.slotTime,
+      slotDate: slotDate ?? this.slotDate,
     );
   }
 
@@ -122,6 +146,12 @@ class OrderModel {
       'createdAt': createdAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
       'bagsCount': bagsCount,
+      'zone': zone,
+      'totalZone': totalZone,
+      'position': position,
+      'neighborhood': neighborhood,
+      'slotTime': slotTime,
+      'slotDate': slotDate,
     };
   }
 
@@ -137,6 +167,12 @@ class OrderModel {
           ? DateTime.parse(json['completedAt'])
           : null,
       bagsCount: json['bagsCount'] ?? 0,
+      zone: json['zone'],
+      totalZone: json['totalZone'] ?? 12,
+      position: json['position'],
+      neighborhood: json['neighborhood'],
+      slotTime: json['slotTime'],
+      slotDate: json['slotDate'],
     );
   }
 

@@ -91,7 +91,13 @@ class MockDataService {
     _orders = [
       OrderModel(
         id: 'o1',
-        orderNumber: 'ORD-001',
+        orderNumber: '1462376582367546783',
+        zone: '5',
+        totalZone: 8,
+        position: 'P12',
+        neighborhood: 'Al Olaya',
+        slotTime: '10-12 pm',
+        slotDate: '05/12/2026',
         items: [
           OrderItem(
             productId: 'p1',
@@ -112,7 +118,13 @@ class MockDataService {
       ),
       OrderModel(
         id: 'o2',
-        orderNumber: 'ORD-002',
+        orderNumber: '2847593016284759301',
+        zone: '12',
+        totalZone: 12,
+        position: 'P5',
+        neighborhood: 'Al Malaz',
+        slotTime: '2-4 pm',
+        slotDate: '06/12/2026',
         items: [
           OrderItem(
             productId: 'p3',

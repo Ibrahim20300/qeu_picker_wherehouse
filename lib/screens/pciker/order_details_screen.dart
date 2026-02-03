@@ -323,6 +323,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     try {
       await InvoiceService.generateAndShareInvoice(order);
     } catch (e) {
+    print(e);
       if (mounted) {
         SnackbarHelper.error(context, 'حدث خطأ أثناء مشاركة الفاتورة');
       }
@@ -857,7 +858,7 @@ class _OrderItemCard extends StatelessWidget {
           Text(
             location,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.blue,
             ),
@@ -880,7 +881,7 @@ class _OrderItemCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             item.barcode,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(color: Colors.grey[600], fontSize: 15,fontWeight: FontWeight.bold),
             textDirection: TextDirection.ltr,
           ),
         ],

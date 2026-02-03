@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -7,9 +8,23 @@ import 'package:intl/intl.dart';
 import '../models/order_model.dart';
 
 class InvoiceService {
+  // مقاس الملصق الثابت
+  static const _labelFormat = PdfPageFormat(
+    80 * PdfPageFormat.mm,
+    120 * PdfPageFormat.mm,
+    marginAll: 4 * PdfPageFormat.mm,
+  );
+
   static Future<void> generateAndPrintInvoice(OrderModel order) async {
     final pdf = await _generatePdf(order);
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    final bytes = await pdf.save();
+
+    // استخدام نافذة الطباعة مع المقاس المحدد
+    await Printing.layoutPdf(
+      onLayout: (format) async => bytes,
+      format: _labelFormat,
+      name: 'Label_${order.orderNumber}',
+    );
   }
 
   static Future<void> generateAndShareInvoice(OrderModel order) async {
@@ -30,37 +45,180 @@ class InvoiceService {
 
   static Future<pw.Document> _generatePdf(OrderModel order) async {
     final pdf = pw.Document();
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
+
+    // استخدام خطوط محلية بدلاً من تحميلها من الإنترنت
+    final font = pw.Font.helvetica();
+    final fontBold = pw.Font.helveticaBold();
+    final dateFormat = DateFormat('yyyy/MM/dd - HH:mm');
 
     pdf.addPage(
       pw.Page(
-      
-        textDirection: pw.TextDirection.rtl,
+        pageFormat: _labelFormat,
+        textDirection: pw.TextDirection.ltr,
         build: (context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              pw.Text('P12',style: pw.TextStyle(fontSize: 200)),
-              // Header
-              _buildHeader(order, arabicFontBold),
-              pw.SizedBox(height: 20),
+              // Position - كبير في الأعلى
+              pw.Center(
+                child: pw.Text(
+                  order.position ?? '-',
+                  style: pw.TextStyle(font: fontBold, fontSize: 45),
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 5),
 
-              // Order Info
-              _buildOrderInfo(order, arabicFont, arabicFontBold),
-              pw.SizedBox(height: 20),
+              // Order-Zone - مدمج
+      
 
-              // Products Table
-              _buildProductsTable(order, arabicFont, arabicFontBold),
-              pw.SizedBox(height: 20),
+              // Barcode - الباركود
+              pw.Center(
+                child: pw.BarcodeWidget(
+                  margin: pw.EdgeInsets.only(top: 0,bottom: 0),
+                  barcode: pw.Barcode.code128(),
+                  data: order.orderNumber+'-'+order.zone!,
+                  width: 55 * PdfPageFormat.mm,
+                  height: 25,
+                  drawText: true,
+                  textStyle: pw.TextStyle(font: font, fontSize: 8),
+                  textPadding: 2
+                ),
+              ),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
 
-              // Summary
-              _buildSummary(order, arabicFont, arabicFontBold),
+              // Neighborhood - الحي
+              pw.Container(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'District: ',
+                      style: pw.TextStyle(font: font, fontSize: 9),
+                    ),
+                    pw.Text(
+                      order.neighborhood ?? '-',
+                      style: pw.TextStyle(font: fontBold, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 4),
+
+              // Slot Time & Date - صف واحد
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Slot Time
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(3),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            'Time',
+                            style: pw.TextStyle(font: font, fontSize: 7),
+                          ),
+                          pw.Text(
+                            order.slotTime ?? '-',
+                            style: pw.TextStyle(font: fontBold, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.Container(width: 1, height: 20, color: PdfColors.black),
+                  // Slot Date
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(3),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            'Date',
+                            style: pw.TextStyle(font: font, fontSize: 7),
+                          ),
+                          pw.Text(
+                            order.slotDate ?? '-',
+                            style: pw.TextStyle(font: fontBold, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Zone
+                  pw.Expanded(
+                    child: pw.Container(
+                      margin: const pw.EdgeInsets.only(right: 4),
+                      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.black),
+                        borderRadius: pw.BorderRadius.circular(3),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            'From Zone',
+                            style: pw.TextStyle(font: font, fontSize: 7),
+                          ),
+                          pw.Text(
+                            order.zone ?? '-',
+                            style: pw.TextStyle(font: fontBold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Total Zone
+                  pw.Expanded(
+                    child: pw.Container(
+                      margin: const pw.EdgeInsets.only(left: 4),
+                      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.black),
+                        borderRadius: pw.BorderRadius.circular(3),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            'Total Zones',
+                            style: pw.TextStyle(font: font, fontSize: 7),
+                          ),
+                          pw.Text(
+                            order.totalZone.toString(),
+                            style: pw.TextStyle(font: fontBold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+   
+              // pw.SizedBox(height: 6),
 
               pw.Spacer(),
 
               // Footer
-              _buildFooter(arabicFont),
+              pw.Divider(thickness: 0.5, color: PdfColors.black),
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    dateFormat.format(DateTime.now()),
+                    style: pw.TextStyle(font: font, fontSize: 7),
+                  ),
+                ],
+              ),
             ],
           );
         },
@@ -70,118 +228,27 @@ class InvoiceService {
     return pdf;
   }
 
-  static pw.Widget _buildHeader(OrderModel order, pw.Font fontBold) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.blue800,
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text(
-            'فاتورة الطلب',
-            style: pw.TextStyle(
-              font: fontBold,
-              fontSize: 28,
-              color: PdfColors.white,
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text(
-            order.orderNumber,
-            style: pw.TextStyle(
-              font: fontBold,
-              fontSize: 20,
-              color: PdfColors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildOrderInfo(OrderModel order, pw.Font font, pw.Font fontBold) {
-    final dateFormat = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'تاريخ الإنشاء',
-                style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey600),
-              ),
-              pw.Text(
-                dateFormat.format(order.createdAt),
-                style: pw.TextStyle(font: fontBold, fontSize: 14),
-              ),
-            ],
-          ),
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'الحالة',
-                style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey600),
-              ),
-              pw.Text(
-                order.statusDisplayName,
-                style: pw.TextStyle(
-                  font: fontBold,
-                  fontSize: 14,
-                  color: order.status == OrderStatus.completed ? PdfColors.green : PdfColors.orange,
-                ),
-              ),
-            ],
-          ),
-          if (order.bagsCount > 0)
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'عدد الأكياس',
-                  style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey600),
-                ),
-                pw.Text(
-                  '${order.bagsCount}',
-                  style: pw.TextStyle(font: fontBold, fontSize: 14),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildProductsTable(OrderModel order, pw.Font font, pw.Font fontBold) {
+  static pw.Widget _buildProductsTable(
+    OrderModel order,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
     return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
+      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(1),
+        0: const pw.FlexColumnWidth(0.8),
         1: const pw.FlexColumnWidth(3),
         2: const pw.FlexColumnWidth(2),
-        3: const pw.FlexColumnWidth(1.5),
-        4: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1.2),
       },
       children: [
         // Header Row
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
           children: [
             _buildTableCell('#', fontBold, isHeader: true),
             _buildTableCell('المنتج', fontBold, isHeader: true),
             _buildTableCell('الباركود', fontBold, isHeader: true),
-            _buildTableCell('الكمية المطلوبة', fontBold, isHeader: true),
-            _buildTableCell('الكمية الملتقطة', fontBold, isHeader: true),
+            _buildTableCell('الكمية', fontBold, isHeader: true),
           ],
         ),
         // Data Rows
@@ -189,19 +256,11 @@ class InvoiceService {
           final index = entry.key;
           final item = entry.value;
           return pw.TableRow(
-            decoration: pw.BoxDecoration(
-              color: index % 2 == 0 ? PdfColors.white : PdfColors.grey50,
-            ),
             children: [
               _buildTableCell('${index + 1}', font),
               _buildTableCell(item.productName, font),
               _buildTableCell(item.barcode, font),
               _buildTableCell('${item.requiredQuantity}', font),
-              _buildTableCell(
-                '${item.pickedQuantity}',
-                font,
-                color: item.isPicked ? PdfColors.green : PdfColors.orange,
-              ),
             ],
           );
         }),
@@ -209,82 +268,21 @@ class InvoiceService {
     );
   }
 
-  static pw.Widget _buildTableCell(String text, pw.Font font, {bool isHeader = false, PdfColor? color}) {
+  static pw.Widget _buildTableCell(
+    String text,
+    pw.Font font, {
+    bool isHeader = false,
+  }) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       child: pw.Text(
         text,
         style: pw.TextStyle(
           font: font,
           fontSize: isHeader ? 12 : 11,
           fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: color ?? PdfColors.black,
         ),
         textAlign: pw.TextAlign.center,
-      ),
-    );
-  }
-
-  static pw.Widget _buildSummary(OrderModel order, pw.Font font, pw.Font fontBold) {
-    final completedItems = order.items.where((item) => item.isPicked).length;
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.blue50,
-        borderRadius: pw.BorderRadius.circular(8),
-        border: pw.Border.all(color: PdfColors.blue200),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-        children: [
-          _buildSummaryItem('إجمالي المنتجات', '${order.totalItems}', font, fontBold),
-          _buildSummaryItem('المنتجات المكتملة', '$completedItems', font, fontBold, color: PdfColors.green),
-          _buildSummaryItem('المنتجات المتبقية', '${order.totalItems - completedItems}', font, fontBold, color: PdfColors.orange),
-          if (order.bagsCount > 0)
-            _buildSummaryItem('الأكياس', '${order.bagsCount}', font, fontBold, color: PdfColors.blue),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildSummaryItem(String label, String value, pw.Font font, pw.Font fontBold, {PdfColor? color}) {
-    return pw.Column(
-      children: [
-        pw.Text(
-          label,
-          style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey600),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          value,
-          style: pw.TextStyle(font: fontBold, fontSize: 18, color: color ?? PdfColors.black),
-        ),
-      ],
-    );
-  }
-
-  static pw.Widget _buildFooter(pw.Font font) {
-    final now = DateTime.now();
-    final dateFormat = DateFormat('yyyy/MM/dd HH:mm:ss', 'ar');
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300)),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            'QEU Picker App',
-            style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey500),
-          ),
-          pw.Text(
-            'تم الطباعة: ${dateFormat.format(now)}',
-            style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey500),
-          ),
-        ],
       ),
     );
   }
