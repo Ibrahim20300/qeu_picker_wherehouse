@@ -71,7 +71,7 @@ class MyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const QCHomeScreen(), // const PickerScreen(), // const LoginScreen(),
+        home:  const PickerScreen(), // const LoginScreen(),
       ),
     );
   }
