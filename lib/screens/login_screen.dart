@@ -198,6 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 8),
           _buildTestCredential('سوبر فايزر', 'supervisor'),
           _buildTestCredential('بيكر', 'picker'),
+          _buildTestCredential('مراقب جودة', 'qc'),
           const SizedBox(height: 4),
           Text(
             'كلمة المرور: 123456',
