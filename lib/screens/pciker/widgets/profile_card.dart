@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../models/user_model.dart';
 
 class ProfileCard extends StatelessWidget {
@@ -92,19 +93,19 @@ class ProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
+        color: AppColors.primaryWithOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primaryWithOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.location_on, size: 20, color: Colors.blue),
+          const Icon(Icons.location_on, size: 20, color: AppColors.primary),
           const SizedBox(width: 6),
           Text(
             'Zone ${user!.zone}',
             style: const TextStyle(
-              color: Colors.blue,
+              color: AppColors.primary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),

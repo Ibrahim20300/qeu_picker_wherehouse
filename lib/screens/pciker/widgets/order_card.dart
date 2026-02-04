@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../models/order_model.dart';
 
 class OrderCard extends StatelessWidget {
@@ -14,13 +15,13 @@ class OrderCard extends StatelessWidget {
   Color get _statusColor {
     switch (order.status) {
       case OrderStatus.pending:
-        return Colors.orange;
+        return AppColors.pending;
       case OrderStatus.inProgress:
-        return Colors.blue;
+        return AppColors.primary;
       case OrderStatus.completed:
-        return Colors.green;
+        return AppColors.success;
       case OrderStatus.cancelled:
-        return Colors.red;
+        return AppColors.error;
     }
   }
 
@@ -55,14 +56,16 @@ class OrderCard extends StatelessWidget {
       children: [
         Icon(Icons.shopping_cart, color: _statusColor),
         const SizedBox(width: 8),
-        Text(
-          order.orderNumber,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            order.orderNumber,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
@@ -101,11 +104,11 @@ class OrderCard extends StatelessWidget {
           ),
         ],
         if (order.status == OrderStatus.completed && order.bagsCount > 0) ...[
-          const Icon(Icons.shopping_bag_outlined, size: 16, color: Colors.green),
+          const Icon(Icons.shopping_bag_outlined, size: 16, color: AppColors.success),
           const SizedBox(width: 4),
           Text(
             '${order.bagsCount} كيس',
-            style: const TextStyle(color: Colors.green),
+            style: const TextStyle(color: AppColors.success),
           ),
         ],
       ],

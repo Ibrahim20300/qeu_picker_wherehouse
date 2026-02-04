@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../models/order_model.dart';
 
 class PositionsGrid extends StatelessWidget {
@@ -21,11 +22,11 @@ class PositionsGrid extends StatelessWidget {
 
     switch (order.status) {
       case OrderStatus.completed:
-        return Colors.green; // مكتمل - أخضر
+        return AppColors.success; // مكتمل - أخضر
       case OrderStatus.pending:
-        return Colors.red; // يحتاج تشييك - أحمر
+        return AppColors.error; // يحتاج تشييك - أحمر
       case OrderStatus.inProgress:
-        return Colors.amber; // جاري الفحص - أصفر
+        return AppColors.warning; // جاري الفحص - أصفر
       case OrderStatus.cancelled:
         return Colors.grey.shade500; // ملغي - رمادي غامق
     }
@@ -79,11 +80,11 @@ class PositionsGrid extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildLegendItem(Colors.red, 'يحتاج فحص'),
+          _buildLegendItem(AppColors.error, 'يحتاج فحص'),
           const SizedBox(width: 16),
-          _buildLegendItem(Colors.amber, 'جاري الفحص'),
+          _buildLegendItem(AppColors.warning, 'جاري الفحص'),
           const SizedBox(width: 16),
-          _buildLegendItem(Colors.green, 'مكتمل'),
+          _buildLegendItem(AppColors.success, 'مكتمل'),
         ],
       ),
     );
@@ -188,7 +189,7 @@ class PositionsStats extends StatelessWidget {
             child: _buildStatItem(
               'يحتاج تشييك',
               pendingCount,
-              Colors.red,
+              AppColors.error,
               Icons.error_outline,
             ),
           ),
@@ -196,7 +197,7 @@ class PositionsStats extends StatelessWidget {
             child: _buildStatItem(
               'جاري الفحص',
               inProgressCount,
-              Colors.amber,
+              AppColors.warning,
               Icons.pending,
             ),
           ),
@@ -204,7 +205,7 @@ class PositionsStats extends StatelessWidget {
             child: _buildStatItem(
               'مكتمل',
               completedCount,
-              Colors.green,
+              AppColors.success,
               Icons.check_circle,
             ),
           ),

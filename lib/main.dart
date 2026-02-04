@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'constants/app_colors.dart';
 import 'package:qeu_pickera/screens/pciker/picker_home_screen.dart';
 import 'package:qeu_pickera/screens/qc/qc_home_screen.dart';
 import 'providers/auth_provider.dart';
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1565C0),
+            seedColor: AppColors.primary,
             brightness: Brightness.light,
           ),
           useMaterial3: true,

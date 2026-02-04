@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
@@ -45,7 +46,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('مراقبة الجودة'),
-        backgroundColor: Colors.orange,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(

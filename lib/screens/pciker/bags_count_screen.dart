@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 import '../../helpers/snackbar_helper.dart';
+import '../../widgets/numeric_keypad.dart';
 
 class BagsCountScreen extends StatefulWidget {
   final String orderNumber;
@@ -85,7 +87,7 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
         //   child: const Icon(
         //     Icons.shopping_bag,
         //     size: 10,
-        //     color: Colors.blue,
+        //     color: AppColors.primary,
         //   ),
         // ),
         const SizedBox(height: 16),
@@ -118,14 +120,14 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.shopping_bag_outlined, size: 32, color: Colors.blue),
+          const Icon(Icons.shopping_bag_outlined, size: 32, color: AppColors.primary),
           const SizedBox(width: 16),
           Text(
             _value,
             style: const TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 16),
@@ -142,69 +144,10 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
   }
 
   Widget _buildKeypad() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _buildKeypadButton('1'),
-              _buildKeypadButton('2'),
-              _buildKeypadButton('3'),
-            ],
-          ),
-          Row(
-            children: [
-              _buildKeypadButton('4'),
-              _buildKeypadButton('5'),
-              _buildKeypadButton('6'),
-            ],
-          ),
-          Row(
-            children: [
-              _buildKeypadButton('7'),
-              _buildKeypadButton('8'),
-              _buildKeypadButton('9'),
-            ],
-          ),
-          Row(
-            children: [
-              _buildKeypadButton('C', isAction: true, onTap: _onClear),
-              _buildKeypadButton('0'),
-              _buildKeypadButton('⌫', isAction: true, onTap: _onBackspace),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKeypadButton(String label, {bool isAction = false, VoidCallback? onTap}) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Material(
-          color: isAction ? Colors.grey[300] : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          elevation: 2,
-          child: InkWell(
-            onTap: onTap ?? () => _onNumberPressed(label),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              height: 70,
-              alignment: Alignment.center,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: isAction ? 24 : 32,
-                  fontWeight: FontWeight.bold,
-                  color: isAction ? Colors.grey[700] : Colors.black87,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return NumericKeypad(
+      onNumberPressed: _onNumberPressed,
+      onClear: _onClear,
+      onBackspace: _onBackspace,
     );
   }
 
@@ -222,7 +165,7 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),

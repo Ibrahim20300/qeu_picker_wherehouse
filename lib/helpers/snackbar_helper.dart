@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 
 /// Helper class للتعامل مع السناك بار
 class SnackbarHelper {
@@ -6,7 +7,7 @@ class SnackbarHelper {
   static void show(
     BuildContext context,
     String message, {
-    Color backgroundColor = Colors.green,
+    Color backgroundColor = AppColors.success,
     IconData? icon,
     Duration duration = const Duration(seconds: 2),
     bool floating = false,
@@ -33,16 +34,16 @@ class SnackbarHelper {
 
   /// سناك بار نجاح
   static void success(BuildContext context, String message, {bool floating = false}) {
-    show(context, message, backgroundColor: Colors.green, icon: Icons.check_circle, floating: floating);
+    show(context, message, backgroundColor: AppColors.success, icon: Icons.check_circle, floating: floating);
   }
 
   /// سناك بار خطأ
   static void error(BuildContext context, String message, {bool floating = false}) {
-    show(context, message, backgroundColor: Colors.red, icon: Icons.warning, floating: floating);
+    show(context, message, backgroundColor: AppColors.error, icon: Icons.warning, floating: floating);
   }
 
   /// سناك بار معلومات
   static void info(BuildContext context, String message, {bool floating = false}) {
-    show(context, message, backgroundColor: Colors.blue, icon: Icons.info, floating: floating);
+    show(context, message, backgroundColor: AppColors.primary, icon: Icons.info, floating: floating);
   }
 }

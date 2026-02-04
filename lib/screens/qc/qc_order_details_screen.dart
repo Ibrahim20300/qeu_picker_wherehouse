@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 import '../../models/order_model.dart';
 import '../../services/invoice_service.dart';
 
@@ -37,7 +38,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
+            Icon(Icons.check_circle, color: AppColors.success),
             SizedBox(width: 8),
             Text('تأكيد الموافقة'),
           ],
@@ -54,7 +55,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               _showSuccessAndPrint('تمت الموافقة على الطلب بنجاح');
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
             ),
             child: const Text('موافقة'),
@@ -72,7 +73,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.cancel, color: Colors.red),
+            Icon(Icons.cancel, color: AppColors.error),
             SizedBox(width: 8),
             Text('رفض الطلب'),
           ],
@@ -103,13 +104,13 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('تم رفض الطلب'),
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppColors.error,
                 ),
               );
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
             child: const Text('رفض'),
@@ -123,7 +124,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.success,
       ),
     );
 
@@ -135,7 +136,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('حدث خطأ أثناء الطباعة'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -151,7 +152,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('فحص الطلب #${widget.order.orderNumber.substring(0, 8)}...'),
-        backgroundColor: Colors.orange,
+        backgroundColor: AppColors.pending,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -191,7 +192,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
   Widget _buildOrderHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.orange.withValues(alpha: 0.1),
+      color: AppColors.pendingWithOpacity(0.1),
       child: Column(
         children: [
           Row(
@@ -219,7 +220,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
   Widget _buildHeaderInfo(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: Colors.orange, size: 20),
+        Icon(icon, color: AppColors.pending, size: 20),
         const SizedBox(height: 4),
         Text(
           label,
@@ -258,7 +259,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
             value: progress,
             backgroundColor: Colors.grey[300],
             valueColor: AlwaysStoppedAnimation<Color>(
-              progress == 1 ? Colors.green : Colors.orange,
+              progress == 1 ? AppColors.success : AppColors.pending,
             ),
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
@@ -273,11 +274,11 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: isChecked ? Colors.green.withValues(alpha: 0.05) : null,
+      color: isChecked ? AppColors.successWithOpacity(0.05) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isChecked ? Colors.green : Colors.grey.shade300,
+          color: isChecked ? AppColors.success : Colors.grey.shade300,
           width: isChecked ? 2 : 1,
         ),
       ),
@@ -296,13 +297,13 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
                       _checkedItems[item.productId] = value ?? false;
                     });
                   },
-                  activeColor: Colors.green,
+                  activeColor: AppColors.success,
                 ),
 
                 // Index
                 CircleAvatar(
                   radius: 14,
-                  backgroundColor: isChecked ? Colors.green : Colors.orange,
+                  backgroundColor: isChecked ? AppColors.success : AppColors.pending,
                   child: Text(
                     '$index',
                     style: const TextStyle(
@@ -327,7 +328,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
 
                 // Check Icon
                 if (isChecked)
-                  const Icon(Icons.check_circle, color: Colors.green),
+                  const Icon(Icons.check_circle, color: AppColors.success),
               ],
             ),
 
@@ -352,7 +353,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               spacing: 8,
               children: item.locations.map((loc) => Chip(
                 label: Text(loc, style: const TextStyle(fontSize: 12)),
-                backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                backgroundColor: AppColors.primaryWithOpacity(0.1),
                 padding: EdgeInsets.zero,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               )).toList(),
@@ -377,7 +378,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
                   icon: const Icon(Icons.report_problem, size: 18),
                   label: const Text('مشكلة'),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
+                    foregroundColor: AppColors.error,
                   ),
                 ),
               ],
@@ -451,7 +452,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.report_problem, color: Colors.red),
+            const Icon(Icons.report_problem, color: AppColors.error),
             const SizedBox(width: 8),
             Expanded(child: Text('الإبلاغ عن مشكلة: ${item.productName}')),
           ],
@@ -477,14 +478,14 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
 
   Widget _buildIssueOption(String label, IconData icon) {
     return ListTile(
-      leading: Icon(icon, color: Colors.red),
+      leading: Icon(icon, color: AppColors.error),
       title: Text(label),
       onTap: () {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تم الإبلاغ عن: $label'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppColors.pending,
           ),
         );
       },
@@ -513,7 +514,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               icon: const Icon(Icons.cancel),
               label: const Text('رفض'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -528,7 +529,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               icon: const Icon(Icons.check_circle),
               label: Text(allItemsChecked ? 'موافقة وطباعة' : 'افحص جميع المنتجات'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),

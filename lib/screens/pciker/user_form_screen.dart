@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../constants/app_colors.dart';
 import '../../providers/users_provider.dart';
 import '../../models/user_model.dart';
 
@@ -77,7 +78,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           content: Text(
             isEditing ? 'تم تعديل المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
     }

@@ -62,7 +62,7 @@ class InvoiceService {
               // Position - كبير في الأعلى
               pw.Center(
                 child: pw.Text(
-                  order.position ?? '-',
+                  order.position!=null? '${order.position!}P':'',
                   style: pw.TextStyle(font: fontBold, fontSize: 45),
                 ),
               ),

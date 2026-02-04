@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
+import '../../constants/app_colors.dart';
 import '../../services/invoice_service.dart';
 import 'bags_count_screen.dart';
+import 'manual_barcode_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final OrderModel order;
@@ -102,7 +104,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     SnackbarHelper.show(
       context,
       '${item.productName} - ${item.pickedQuantity}/${item.requiredQuantity} | متبقي: ${result.remaining}',
-      backgroundColor: Colors.blue,
+      backgroundColor: AppColors.primary,
       icon: Icons.add_circle,
       duration: const Duration(seconds: 1),
       floating: true,
@@ -149,8 +151,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                   onPressed: () => Navigator.pop(dialogContext),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: currentResult?.isComplete == true
-                        ? Colors.green
-                        : Colors.blue,
+                        ? AppColors.success
+                        : AppColors.primary,
                   ),
                   child: Text(
                       currentResult?.isComplete == true ? 'ممتاز!' : 'استمر'),
@@ -187,15 +189,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         }
 
         return Scaffold(
-          appBar: _buildAppBar(provider, order),
-          body: Stack(
-            children: [
-              Column(
-                children: [
-                  // _buildOrderHeader(provider, order),
-                  if (order.status == OrderStatus.inProgress)
-                    _buildProgressBar(provider),
-                  _buildTabBar(provider),
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    _buildCustomHeader(provider, order),
+                    if (order.status == OrderStatus.inProgress)
+                      _buildProgressBar(provider),
+                    _buildTabBar(provider),
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
@@ -211,6 +213,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
               _buildHiddenBarcodeField(),
             ],
           ),
+          ),
         );
       },
     );
@@ -218,18 +221,18 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
   Widget _buildTabBar(OrdersProvider provider) {
     return Container(
-      color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+      color: AppColors.primaryWithOpacity(0.05),
       child: TabBar(
         controller: _tabController,
-        labelColor: Theme.of(context).primaryColor,
+        labelColor: AppColors.primary,
         unselectedLabelColor: Colors.grey,
-        indicatorColor: Theme.of(context).primaryColor,
+        indicatorColor: AppColors.primary,
         tabs: [
           Tab(
             icon: Badge(
               isLabelVisible: provider.remainingItems.isNotEmpty,
               label: Text('${provider.remainingItems.length}'),
-              backgroundColor: Colors.orange,
+              backgroundColor: AppColors.pending,
               child: const Icon(Icons.pending_actions),
             ),
             text: 'متبقي',
@@ -238,7 +241,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             icon: Badge(
               isLabelVisible: provider.completedItems.isNotEmpty,
               label: Text('${provider.completedItems.length}'),
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
               child: const Icon(Icons.check_circle_outline),
             ),
             text: 'مكتمل',
@@ -247,7 +250,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             icon: Badge(
               isLabelVisible: provider.missingCount > 0,
               label: Text('${provider.missingCount}'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               child: const Icon(Icons.error_outline),
             ),
             text: 'مفقود',
@@ -257,56 +260,124 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
   }
 
-  AppBar _buildAppBar(OrdersProvider provider, OrderModel order) {
-    return AppBar(
-      title: Text('الطلب ${order.orderNumber}'),
-      actions: [
-        // زر الفاتورة
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.receipt_long),
-          tooltip: 'الفاتورة',
-          onSelected: (value) {
-            if (value == 'print') {
-              _printInvoice(order);
-            } else if (value == 'share') {
-              _shareInvoice(order);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'print',
-              child: Row(
-                children: [
-                  Icon(Icons.print, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text('طباعة الفاتورة'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'share',
-              child: Row(
-                children: [
-                  Icon(Icons.share, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text('مشاركة الفاتورة'),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (order.status == OrderStatus.pending)
-          TextButton(
-            onPressed: () => _onStartOrder(provider),
-            child: const Text('بدء الطلب', style: TextStyle(color: Colors.white)),
+  Widget _buildCustomHeader(OrdersProvider provider, OrderModel order) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
           ),
-        if (order.status == OrderStatus.inProgress)
-          TextButton(
-            onPressed: () => _onCompleteOrder(provider, order),
-            child: const Text('إكمال الطلب', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: Text(
+              order.orderNumber,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textDirection: TextDirection.ltr,
+            ),
           ),
-      ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              switch (value) {
+                case 'keyboard':
+                  _openManualBarcode();
+                  break;
+                case 'print':
+                  _printInvoice(order);
+                  break;
+                case 'share':
+                  _shareInvoice(order);
+                  break;
+                case 'start':
+                  _onStartOrder(provider);
+                  break;
+                case 'complete':
+                  _onCompleteOrder(provider, order);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              if (order.status == OrderStatus.pending)
+                const PopupMenuItem(
+                  value: 'start',
+                  child: Row(
+                    children: [
+                      Icon(Icons.play_arrow, color: AppColors.primary),
+                      SizedBox(width: 8),
+                      Text('بدء الطلب'),
+                    ],
+                  ),
+                ),
+              if (order.status == OrderStatus.inProgress)
+                const PopupMenuItem(
+                  value: 'complete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.success),
+                      SizedBox(width: 8),
+                      Text('إكمال الطلب'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'keyboard',
+                child: Row(
+                  children: [
+                    Icon(Icons.keyboard, color: AppColors.pending),
+                    SizedBox(width: 8),
+                    Text('إدخال باركود يدوي'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'print',
+                child: Row(
+                  children: [
+                    Icon(Icons.print, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text('طباعة الفاتورة'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share, color: AppColors.success),
+                    SizedBox(width: 8),
+                    Text('مشاركة الفاتورة'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _openManualBarcode() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => const ManualBarcodeScreen()),
+    );
+
+    if (result == null || !mounted) return;
+
+    final barcode = result['barcode'] as String;
+    final quantity = result['quantity'] as int;
+
+    for (int i = 0; i < quantity; i++) {
+      _handleBarcodeScan(barcode);
+    }
   }
 
   Future<void> _printInvoice(OrderModel order) async {
@@ -382,7 +453,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.blue,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -406,7 +477,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             value: progress,
             backgroundColor: Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(
-              progress == 1.0 ? Colors.green : Colors.blue,
+              progress == 1.0 ? AppColors.success : AppColors.primary,
             ),
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
@@ -437,7 +508,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, size: 64, color: Colors.green[400]),
+                  Icon(Icons.check_circle, size: 64, color: AppColors.success),
                   const SizedBox(height: 16),
                   Text(
                     'تم التعامل مع جميع المنتجات',
@@ -502,7 +573,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
       onPressed: () => _onCompleteOrder(provider, order),
       icon: Icons.check_circle,
       label: 'إكمال الطلب',
-      backgroundColor: Colors.green,
+      backgroundColor: AppColors.success,
     );
   }
 
@@ -511,7 +582,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
       onPressed: () => _onStartOrder(provider),
       icon: Icons.play_arrow,
       label: 'بدء التحضير',
-      backgroundColor: Colors.blue,
+      backgroundColor: AppColors.primary,
     );
   }
 
@@ -563,7 +634,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, size: 64, color: Colors.green[400]),
+            Icon(Icons.check_circle, size: 64, color: AppColors.success),
             const SizedBox(height: 16),
             Text(
               'لا توجد منتجات مفقودة',
@@ -647,13 +718,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   Color _getStatusColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
-        return Colors.orange;
+        return AppColors.pending;
       case OrderStatus.inProgress:
-        return Colors.blue;
+        return AppColors.primary;
       case OrderStatus.completed:
-        return Colors.green;
+        return AppColors.success;
       case OrderStatus.cancelled:
-        return Colors.red;
+        return AppColors.error;
     }
   }
 }
@@ -690,7 +761,7 @@ class _OrderItemCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
-          border: item.isPicked ? Border.all(color: Colors.green, width: 2) : null,
+          border: item.isPicked ? Border.all(color: AppColors.success, width: 2) : null,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -707,7 +778,7 @@ class _OrderItemCard extends StatelessWidget {
     return Container(
       height: 150,
       width: double.infinity,
-      color: item.isPicked ? Colors.green.withValues(alpha: 0.1) : Colors.grey[200],
+      color: item.isPicked ? AppColors.successWithOpacity(0.1) : Colors.grey[200],
       child: Stack(
         children: [
           Center(child: Image.network('https://img.ananinja.com/media/bra-public-files/services-admin/files/8ed8554c-6637-404d-b2b9-20924d3b9766?w=384&q=90')),
@@ -725,7 +796,7 @@ class _OrderItemCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: item.isPicked ? Colors.green : Colors.orange,
+          color: item.isPicked ? AppColors.success : AppColors.pending,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -745,7 +816,7 @@ class _OrderItemCard extends StatelessWidget {
       top: 8,
       left: 8,
       child: Material(
-        color: Colors.red.withValues(alpha: 0.9),
+        color: AppColors.errorWithOpacity( 0.9),
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onMarkMissing,
@@ -814,8 +885,8 @@ class _OrderItemCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: item.isPicked
-                ? Colors.green.withValues(alpha: 0.1)
-                : Colors.orange.withValues(alpha: 0.1),
+                ? AppColors.successWithOpacity(0.1)
+                : AppColors.pendingWithOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -825,7 +896,7 @@ class _OrderItemCard extends StatelessWidget {
                 item.isPicked ? 'مكتمل' : 'متبقي: ',
                 style: TextStyle(
                   fontSize: 14,
-                  color: item.isPicked ? Colors.green : Colors.orange,
+                  color: item.isPicked ? AppColors.success : AppColors.pending,
                 ),
               ),
               Text(
@@ -833,7 +904,7 @@ class _OrderItemCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: item.isPicked ? Colors.green : Colors.orange,
+                  color: item.isPicked ? AppColors.success : AppColors.pending,
                 ),
               ),
             ],
@@ -847,9 +918,9 @@ class _OrderItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
+        color: AppColors.primaryWithOpacity( 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primaryWithOpacity( 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -860,12 +931,12 @@ class _OrderItemCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: 4),
 
-                    const Icon(Icons.location_on, color: Colors.blue, size: 18),
+                    const Icon(Icons.location_on, color: AppColors.primary, size: 18),
 
         ],
       ),
@@ -907,15 +978,15 @@ class _PickResultDialogTitle extends StatelessWidget {
 
         if (result.alreadyComplete) {
           icon = Icons.info;
-          color = Colors.orange;
+          color = AppColors.pending;
           text = 'مكتمل مسبقاً';
         } else if (result.isComplete) {
           icon = Icons.check_circle;
-          color = Colors.green;
+          color = AppColors.success;
           text = 'اكتمل التقاط المنتج!';
         } else {
           icon = Icons.add_circle;
-          color = Colors.blue;
+          color = AppColors.primary;
           text = 'تم التقاط 1';
         }
 
@@ -973,20 +1044,20 @@ class _PickResultDialogContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
+        color: AppColors.primaryWithOpacity( 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.location_on, color: Colors.blue, size: 24),
+          const Icon(Icons.location_on, color: AppColors.primary, size: 24),
           const SizedBox(width: 8),
           Text(
             location,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -998,9 +1069,9 @@ class _PickResultDialogContent extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildQuantityBox('الملتقط', '${item.pickedQuantity}', Colors.green),
+        _buildQuantityBox('الملتقط', '${item.pickedQuantity}', AppColors.success),
         const Text('/', style: TextStyle(fontSize: 32, color: Colors.grey)),
-        _buildQuantityBox('المطلوب', '${item.requiredQuantity}', Colors.blue),
+        _buildQuantityBox('المطلوب', '${item.requiredQuantity}', AppColors.primary),
       ],
     );
   }
@@ -1032,7 +1103,7 @@ class _PickResultDialogContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.1),
+        color: AppColors.pendingWithOpacity( 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1040,7 +1111,7 @@ class _PickResultDialogContent extends StatelessWidget {
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.orange,
+          color: AppColors.pending,
         ),
       ),
     );
@@ -1065,7 +1136,7 @@ class _MissingItemCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.red.withValues(alpha: 0.5), width: 2),
+          border: Border.all(color: AppColors.errorWithOpacity( 0.5), width: 2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -1073,14 +1144,14 @@ class _MissingItemCard extends StatelessWidget {
             Container(
               height: 80,
               width: double.infinity,
-              color: Colors.red.withValues(alpha: 0.1),
+              color: AppColors.errorWithOpacity( 0.1),
               child: Stack(
                 children: [
                   const Center(
                     child: Icon(
                       Icons.error_outline,
                       size: 48,
-                      color: Colors.red,
+                      color: AppColors.error,
                     ),
                   ),
                   Positioned(
@@ -1089,7 +1160,7 @@ class _MissingItemCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: AppColors.error,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
@@ -1106,7 +1177,7 @@ class _MissingItemCard extends StatelessWidget {
                     top: 8,
                     left: 8,
                     child: Material(
-                      color: Colors.green.withValues(alpha: 0.9),
+                      color: AppColors.successWithOpacity( 0.9),
                       borderRadius: BorderRadius.circular(20),
                       child: InkWell(
                         onTap: onRestore,
@@ -1152,20 +1223,20 @@ class _MissingItemCard extends StatelessWidget {
                     children: item.locations.map((loc) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
+                        color: AppColors.primaryWithOpacity( 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.location_on, color: Colors.blue, size: 18),
+                          const Icon(Icons.location_on, color: AppColors.primary, size: 18),
                           const SizedBox(width: 4),
                           Text(
                             loc,
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              color: AppColors.primary,
                             ),
                           ),
                         ],
@@ -1177,7 +1248,7 @@ class _MissingItemCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: AppColors.errorWithOpacity( 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -1185,14 +1256,14 @@ class _MissingItemCard extends StatelessWidget {
                       children: [
                         const Text(
                           'المطلوب: ',
-                          style: TextStyle(fontSize: 14, color: Colors.red),
+                          style: TextStyle(fontSize: 14, color: AppColors.error),
                         ),
                         Text(
                           '${item.requiredQuantity}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.red,
+                            color: AppColors.error,
                           ),
                         ),
                       ],
@@ -1278,7 +1349,7 @@ class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
       title: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.location_on, color: Colors.blue, size: 28),
+          const Icon(Icons.location_on, color: AppColors.primary, size: 28),
           const SizedBox(width: 8),
           Text('الموقع ${_currentIndex + 1} من ${widget.item.locations.length}'),
         ],
@@ -1299,7 +1370,7 @@ class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
               IconButton(
                 onPressed: _isFirstLocation ? null : _goToPrevious,
                 icon: const Icon(Icons.arrow_back_ios),
-                color: Colors.blue,
+                color: AppColors.primary,
                 disabledColor: Colors.grey[300],
               ),
               // الموقع الحالي
@@ -1307,20 +1378,20 @@ class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: AppColors.primaryWithOpacity( 0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    border: Border.all(color: AppColors.primaryWithOpacity( 0.3)),
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.blue, size: 40),
+                      const Icon(Icons.location_on, color: AppColors.primary, size: 40),
                       const SizedBox(height: 8),
                       Text(
                         _currentLocation,
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: AppColors.primary,
                         ),
                         textDirection: TextDirection.ltr,
                       ),
@@ -1332,7 +1403,7 @@ class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
               IconButton(
                 onPressed: _isLastLocation ? null : _goToNext,
                 icon: const Icon(Icons.arrow_forward_ios),
-                color: Colors.blue,
+                color: AppColors.primary,
                 disabledColor: Colors.grey[300],
               ),
             ],
@@ -1351,7 +1422,7 @@ class _LocationNavigationDialogState extends State<_LocationNavigationDialog> {
             icon: const Icon(Icons.close),
             label: const Text('مفقود'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../providers/orders_provider.dart';
 import 'stat_card.dart';
 
@@ -23,7 +24,7 @@ class StatisticsGrid extends StatelessWidget {
                 title: 'طلبات مكتملة',
                 value: '$completedOrders',
                 icon: Icons.check_circle,
-                color: Colors.green,
+                color: AppColors.success,
               ),
             ),
             const SizedBox(width: 12),
@@ -32,7 +33,7 @@ class StatisticsGrid extends StatelessWidget {
                 title: 'قيد التنفيذ',
                 value: '$inProgressOrders',
                 icon: Icons.sync,
-                color: Colors.blue,
+                color: AppColors.primary,
               ),
             ),
           ],
@@ -45,7 +46,7 @@ class StatisticsGrid extends StatelessWidget {
                 title: 'طلبات معلقة',
                 value: '$pendingOrders',
                 icon: Icons.pending_actions,
-                color: Colors.orange,
+                color: AppColors.pending,
               ),
             ),
             const SizedBox(width: 12),
@@ -54,7 +55,7 @@ class StatisticsGrid extends StatelessWidget {
                 title: 'إجمالي الطلبات',
                 value: '$totalOrders',
                 icon: Icons.shopping_cart,
-                color: Colors.purple,
+                color: AppColors.primaryDark,
               ),
             ),
           ],
