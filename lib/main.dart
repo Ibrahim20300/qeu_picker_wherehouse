@@ -8,7 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/orders_provider.dart';
 import 'providers/picker_provider.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home:  const PickerScreen(), // const LoginScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

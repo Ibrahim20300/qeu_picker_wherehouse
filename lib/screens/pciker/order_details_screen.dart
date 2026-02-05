@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:barcode_widget/barcode_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
 import '../../constants/app_colors.dart';
 import '../../services/invoice_service.dart';
+import '../../services/api_service.dart';
 import 'bags_count_screen.dart';
 import 'manual_barcode_screen.dart';
+import 'picking_screen.dart';
+import 'widgets/pick_result_dialog.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
-  final OrderModel order;
+  final OrderModel? order;
+  final String? taskId;
 
-  const OrderDetailsScreen({super.key, required this.order});
+  const OrderDetailsScreen({super.key, this.order, this.taskId})
+      : assert(order != null || taskId != null, 'Either order or taskId must be provided');
 
   @override
   State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
@@ -30,6 +38,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   // لتتبع دايلوج الموقع المفتوح
   bool _isLocationDialogOpen = false;
 
+  // Task data loading
+  Map<String, dynamic>? _taskData;
+  bool _isLoading = false;
+  String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -37,9 +50,452 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
     // تحديد الطلب في البروفايدر
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrdersProvider>().selectOrder(widget.order.id);
-      _setupBarcodeScanning();
+      if (widget.order != null) {
+        context.read<OrdersProvider>().selectOrder(widget.order!.id);
+      } else if (widget.taskId != null) {
+        _loadTaskDetails();
+      }
+      // _setupBarcodeScanning();
     });
+  }
+
+  Future<void> _loadTaskDetails() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final data = await authProvider.apiService.getTaskDetails(widget.taskId!);
+      setState(() {
+        _taskData = data;
+        _isLoading = false;
+      });
+    } on ApiException catch (e) {
+      setState(() {
+        _error = e.message;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'فشل جلب تفاصيل المهمة';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Widget _buildTaskDetailsView() {
+    final task = _taskData!;
+    final orderNumber = task['order_number']?.toString().replaceAll('#', '') ?? '';
+    final status = task['status']?.toString() ?? '';
+    final totalItems = task['total_items'] ?? 0;
+    final pickedItems = task['picked_items'] ?? 0;
+    final customerName = task['customer_name'] ?? '';
+    final items = task['items'] as List<dynamic>? ?? [];
+    final isInProgress = status.toUpperCase() == 'TASK_IN_PROGRESS';
+    final isCompleted = status.toUpperCase() == 'TASK_COMPLETED';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('طلب #$orderNumber'),
+        backgroundColor: AppColors.primary,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadTaskDetails,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Order info card
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.shopping_bag, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'طلب #$orderNumber',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                _buildTaskStatusBadge(status),
+                              ],
+                            ),
+                            if (customerName.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    customerName,
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: totalItems > 0 ? pickedItems / totalItems : 0,
+                              backgroundColor: Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                pickedItems == totalItems ? AppColors.success : AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '$pickedItems / $totalItems منتج',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Items list
+                    const Text(
+                      'المنتجات',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    ...items.map((item) => _buildTaskItemCard(item as Map<String, dynamic>)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Bottom action button
+          if (isInProgress && !isCompleted)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _onResumeTaskPicking(task),
+                    icon: const Icon(Icons.play_circle_fill),
+                    label: Text(
+                      'استكمال التحضير ($pickedItems/$totalItems)',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onResumeTaskPicking(Map<String, dynamic> task) async {
+    // Convert task data to OrderModel for PickingScreen
+    final order = _convertTaskToOrder(task);
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickingScreen(order: order),
+      ),
+    );
+
+    if (result == true && mounted) {
+      SnackbarHelper.success(context, 'تم إكمال التحضير بنجاح');
+      Navigator.pop(context);
+    } else {
+      // Refresh task details when returning
+      _loadTaskDetails();
+    }
+  }
+
+  OrderModel _convertTaskToOrder(Map<String, dynamic> task) {
+    final items = (task['items'] as List<dynamic>? ?? []).map((item) {
+      final itemMap = item as Map<String, dynamic>;
+
+      // Get first barcode from barcodes array
+      final barcodes = itemMap['barcodes'] as List<dynamic>? ?? [];
+      final barcode = barcodes.isNotEmpty ? barcodes.first.toString() : '';
+
+      // Extract full_code from locations array
+      final locationsData = itemMap['locations'] as List<dynamic>? ?? [];
+      final locations = locationsData.map((loc) {
+        if (loc is Map<String, dynamic>) {
+          return loc['full_code']?.toString() ?? '';
+        }
+        return loc.toString();
+      }).where((loc) => loc.isNotEmpty).toList();
+
+      return OrderItem(
+        productId: itemMap['product_id']?.toString() ?? '',
+        productName: itemMap['product_name']?.toString() ?? '',
+        barcode: barcode,
+        requiredQuantity: itemMap['ordered_quantity'] ?? 0,
+        pickedQuantity: itemMap['picked_quantity'] ?? 0,
+        locations: locations.isNotEmpty ? locations : [''],
+        imageUrl: itemMap['product_image']?.toString(),
+        unitName: itemMap['unit_name']?.toString(),
+      );
+    }).toList();
+
+    return OrderModel(
+      id: task['id']?.toString() ?? '',
+      orderNumber: task['order_number']?.toString() ?? '',
+      status: _parseTaskStatus(task['status']?.toString() ?? ''),
+      items: items,
+      createdAt: DateTime.tryParse(task['created_at']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+
+  OrderStatus _parseTaskStatus(String status) {
+    switch (status.toUpperCase()) {
+      case 'TASK_PENDING':
+      case 'TASK_ASSIGNED':
+        return OrderStatus.pending;
+      case 'TASK_IN_PROGRESS':
+        return OrderStatus.inProgress;
+      case 'TASK_COMPLETED':
+        return OrderStatus.completed;
+      case 'TASK_CANCELLED':
+        return OrderStatus.cancelled;
+      default:
+        return OrderStatus.pending;
+    }
+  }
+
+  Widget _buildTaskStatusBadge(String status) {
+    Color color;
+    String text;
+
+    switch (status.toUpperCase()) {
+      case 'TASK_PENDING':
+        color = AppColors.pending;
+        text = 'قيد الانتظار';
+        break;
+      case 'TASK_ASSIGNED':
+        color = Colors.blue;
+        text = 'تم التعيين';
+        break;
+      case 'TASK_IN_PROGRESS':
+        color = AppColors.primary;
+        text = 'جاري التحضير';
+        break;
+      case 'TASK_COMPLETED':
+        color = AppColors.success;
+        text = 'مكتمل';
+        break;
+      case 'TASK_CANCELLED':
+        color = AppColors.error;
+        text = 'ملغي';
+        break;
+      default:
+        color = Colors.grey;
+        text = status.replaceAll('TASK_', '');
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskItemCard(Map<String, dynamic> item) {
+    final name = item['product_name']?.toString() ?? '';
+
+    // Get first barcode from barcodes array
+    final barcodes = item['barcodes'] as List<dynamic>? ?? [];
+    final barcode = barcodes.isNotEmpty ? barcodes.first.toString() : '';
+
+    final requiredQty = item['ordered_quantity'] ?? 0;
+    final pickedQty = item['picked_quantity'] ?? 0;
+
+    // Get location from locations array
+    final locationsData = item['locations'] as List<dynamic>? ?? [];
+    final location = locationsData.isNotEmpty && locationsData.first is Map<String, dynamic>
+        ? (locationsData.first as Map<String, dynamic>)['full_code']?.toString() ?? ''
+        : '';
+
+    final zone = item['zone']?.toString() ?? '';
+    final imageUrl = item['product_image']?.toString() ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image
+            if (imageUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  width: 70,
+                  height: 70,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    width: 70,
+                    height: 70,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.inventory_2, color: Colors.grey),
+              ),
+            const SizedBox(width: 12),
+            // Product details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.qr_code, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        barcode,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        textDirection: TextDirection.ltr,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (zone.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            zone,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      if (location.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on, size: 12, color: AppColors.primary),
+                              const SizedBox(width: 2),
+                              Text(
+                                location,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: pickedQty == requiredQty
+                              ? AppColors.success.withValues(alpha: 0.1)
+                              : AppColors.pending.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '$pickedQty / $requiredQty',
+                          style: TextStyle(
+                            color: pickedQty == requiredQty ? AppColors.success : AppColors.pending,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _setupBarcodeScanning() {
@@ -60,6 +516,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     if (mounted) {
       _barcodeFocusNode.requestFocus();
       Future.delayed(const Duration(milliseconds: 50), () {
+        print('object');
         if (mounted) {
           _barcodeFocusNode.requestFocus();
           SystemChannels.textInput.invokeMethod('TextInput.hide');
@@ -81,6 +538,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   }
 
   void _handleBarcodeScan(String barcode) {
+    return;
     // إغلاق دايلوج الموقع إذا كان مفتوحاً
     if (_isLocationDialogOpen) {
       Navigator.of(context).pop();
@@ -124,41 +582,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: ordersProvider,
-        child: Consumer<OrdersProvider>(
-          builder: (context, provider, child) {
-            final currentResult = provider.lastPickResult;
-
-            // إغلاق الدايلوج تلقائياً عند اكتمال المنتج
-            if (currentResult?.isComplete == true) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (Navigator.canPop(dialogContext)) {
-                  Navigator.pop(dialogContext);
-                  SnackbarHelper.success(
-                    this.context,
-                    'تم اكتمال ${provider.lastPickedItem?.productName ?? "المنتج"}',
-                    floating: true,
-                  );
-                }
-              });
+        child: PickResultDialogWrapper(
+          onComplete: (productName) {
+            if (Navigator.canPop(dialogContext)) {
+              Navigator.pop(dialogContext);
+              SnackbarHelper.success(
+                context,
+                'تم اكتمال $productName',
+                floating: true,
+              );
             }
-
-            return AlertDialog(
-              title: const _PickResultDialogTitle(),
-              content: const _PickResultDialogContent(),
-              actionsAlignment: MainAxisAlignment.center,
-              actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: currentResult?.isComplete == true
-                        ? AppColors.success
-                        : AppColors.primary,
-                  ),
-                  child: Text(
-                      currentResult?.isComplete == true ? 'ممتاز!' : 'استمر'),
-                ),
-              ],
-            );
           },
         ),
       ),
@@ -178,6 +611,52 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Show loading state when fetching task details
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('تفاصيل المهمة'),
+          backgroundColor: AppColors.primary,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Show error state
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('تفاصيل المهمة'),
+          backgroundColor: AppColors.primary,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadTaskDetails,
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show task data if loaded from API
+    if (_taskData != null) {
+      return _buildTaskDetailsView();
+    }
+
     return Consumer<OrdersProvider>(
       builder: (context, provider, child) {
         final order = provider.currentOrder;
@@ -210,7 +689,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                   ),
                 ],
               ),
-              _buildHiddenBarcodeField(),
+              // _buildHiddenBarcodeField(),
             ],
           ),
           ),
@@ -273,14 +752,25 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             onPressed: () => Navigator.pop(context),
           ),
           Expanded(
-            child: Text(
-              order.orderNumber,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            child: GestureDetector(
+              onTap: () => _showOrderBarcode(order),
+              child: Row(
+                children: [
+                  const Icon(Icons.qr_code, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      order.orderNumber,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ),
+                ],
               ),
-              textDirection: TextDirection.ltr,
             ),
           ),
           PopupMenuButton<String>(
@@ -302,6 +792,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                 case 'complete':
                   _onCompleteOrder(provider, order);
                   break;
+                case 'resume':
+                  _onResumePicking(order);
+                  break;
               }
             },
             itemBuilder: (context) => [
@@ -313,6 +806,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       Icon(Icons.play_arrow, color: AppColors.primary),
                       SizedBox(width: 8),
                       Text('بدء الطلب'),
+                    ],
+                  ),
+                ),
+              if (order.status == OrderStatus.inProgress)
+                const PopupMenuItem(
+                  value: 'resume',
+                  child: Row(
+                    children: [
+                      Icon(Icons.play_circle_fill, color: AppColors.primary),
+                      SizedBox(width: 8),
+                      Text('استكمال التحضير'),
                     ],
                   ),
                 ),
@@ -380,6 +884,52 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     }
   }
 
+  void _showOrderBarcode(OrderModel order) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('باركود الطلب', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: BarcodeWidget(
+                barcode: Barcode.code128(),
+                data: order.orderNumber,
+                width: 250,
+                height: 80,
+                drawText: true,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              order.orderNumber,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+              textDirection: TextDirection.ltr,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _printInvoice(OrderModel order) async {
     try {
       await InvoiceService.generateAndPrintInvoice(order);
@@ -401,9 +951,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     }
   }
 
-  void _onStartOrder(OrdersProvider provider) {
-    provider.startOrder(widget.order.id);
-    SnackbarHelper.success(context, 'تم بدء الطلب');
+  void _onStartOrder(OrdersProvider provider) async {
+    if (widget.order == null) return;
+
+    provider.startOrder(widget.order!.id);
+
+    // فتح صفحة التحضير الاحترافية
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickingScreen(order: widget.order!),
+      ),
+    );
+
+    if (result == true && mounted) {
+      SnackbarHelper.success(context, 'تم إكمال التحضير بنجاح');
+    }
+  }
+
+  Future<void> _onResumePicking(OrderModel order) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickingScreen(order: order),
+      ),
+    );
+
+    if (result == true && mounted) {
+      SnackbarHelper.success(context, 'تم إكمال التحضير بنجاح');
+    }
   }
 
   Future<void> _onCompleteOrder(OrdersProvider provider, OrderModel order) async {
@@ -449,16 +1025,26 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
               ],
             ),
           ),
-          if (order.status == OrderStatus.inProgress)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(20),
+          if (order.status == OrderStatus.pending)
+            ElevatedButton.icon(
+              onPressed: () => _onStartOrder(provider),
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: const Text('بدء التحضير'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
-              child: Text(
-                '${provider.pickedItemsCount}/${provider.totalItemsCount}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          if (order.status == OrderStatus.inProgress)
+            ElevatedButton.icon(
+              onPressed: () => _onResumePicking(order),
+              icon: const Icon(Icons.play_circle_fill, size: 18),
+              label: Text('استكمال (${provider.pickedItemsCount}/${provider.totalItemsCount})'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
             ),
         ],
@@ -562,6 +1148,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         ),
         if (showNotFoundButton && isPending)
           _buildStartOrderButton(provider),
+        if (showNotFoundButton && isInProgress && !canComplete)
+          _buildResumePickingButton(order!),
         if (showNotFoundButton && canComplete)
           _buildCompleteOrderButton(provider, order!),
       ],
@@ -583,6 +1171,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
       icon: Icons.play_arrow,
       label: 'بدء التحضير',
       backgroundColor: AppColors.primary,
+    );
+  }
+
+  Widget _buildResumePickingButton(OrderModel order) {
+    return _buildBottomButton(
+      onPressed: () => _onResumePicking(order),
+      icon: Icons.play_circle_fill,
+      label: 'استكمال التحضير',
+      backgroundColor: AppColors.success,
     );
   }
 
@@ -711,6 +1308,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         textDirection: TextDirection.ltr,
         showCursor: false,
         autofocus: true,
+        onChanged: (value){
+    
+        },
       ),
     );
   }
@@ -779,12 +1379,34 @@ class _OrderItemCard extends StatelessWidget {
       height: 150,
       width: double.infinity,
       color: item.isPicked ? AppColors.successWithOpacity(0.1) : Colors.grey[200],
-      child: Stack(
-        children: [
-          Center(child: Image.network('https://img.ananinja.com/media/bra-public-files/services-admin/files/8ed8554c-6637-404d-b2b9-20924d3b9766?w=384&q=90')),
-          _buildStatusBadge(),
-          if (showNotFoundButton && canMarkMissing && !item.isPicked) _buildNotFoundButton(),
-        ],
+      child: Padding(
+        padding: EdgeInsets.only(top: 10,bottom: 10),
+        child: Container(
+          child: Stack(
+            children: [
+              Center(
+                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: item.imageUrl!,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const CircularProgressIndicator(),
+                        errorWidget: (_, __, ___) => const Icon(
+                          Icons.image_not_supported,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.inventory_2,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+              ),
+              _buildStatusBadge(),
+              // if (showNotFoundButton && canMarkMissing && !item.isPicked) _buildNotFoundButton(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -956,163 +1578,6 @@ class _OrderItemCard extends StatelessWidget {
             textDirection: TextDirection.ltr,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// عنوان دايلوج نتيجة الالتقاط
-class _PickResultDialogTitle extends StatelessWidget {
-  const _PickResultDialogTitle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<OrdersProvider>(
-      builder: (context, provider, child) {
-        final result = provider.lastPickResult;
-        if (result == null) return const SizedBox.shrink();
-
-        IconData icon;
-        Color color;
-        String text;
-
-        if (result.alreadyComplete) {
-          icon = Icons.info;
-          color = AppColors.pending;
-          text = 'مكتمل مسبقاً';
-        } else if (result.isComplete) {
-          icon = Icons.check_circle;
-          color = AppColors.success;
-          text = 'اكتمل التقاط المنتج!';
-        } else {
-          icon = Icons.add_circle;
-          color = AppColors.primary;
-          text = 'تم التقاط 1';
-        }
-
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(width: 8),
-            Text(text, style: const TextStyle(fontSize: 16)),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// محتوى دايلوج نتيجة الالتقاط
-class _PickResultDialogContent extends StatelessWidget {
-  const _PickResultDialogContent();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<OrdersProvider>(
-      builder: (context, provider, child) {
-        final result = provider.lastPickResult;
-        final item = provider.lastPickedItem;
-
-        if (result == null || item == null) {
-          return const SizedBox.shrink();
-        }
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              item.productName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            _buildLocationBox(item.location),
-            const SizedBox(height: 16),
-            _buildQuantityRow(item),
-            if (!result.alreadyComplete && !result.isComplete) ...[
-              const SizedBox(height: 16),
-              _buildRemainingBadge(result.remaining),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildLocationBox(String location) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryWithOpacity( 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.location_on, color: AppColors.primary, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            location,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuantityRow(OrderItem item) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildQuantityBox('الملتقط', '${item.pickedQuantity}', AppColors.success),
-        const Text('/', style: TextStyle(fontSize: 32, color: Colors.grey)),
-        _buildQuantityBox('المطلوب', '${item.requiredQuantity}', AppColors.primary),
-      ],
-    );
-  }
-
-  Widget _buildQuantityBox(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: color)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRemainingBadge(int remaining) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.pendingWithOpacity( 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        'متبقي: $remaining',
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppColors.pending,
-        ),
       ),
     );
   }

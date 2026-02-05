@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../models/user_model.dart';
+import 'pciker/picker_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,13 +12,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _teamNameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _teamNameController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -29,20 +29,23 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = context.read<AuthProvider>();
 
     final success = await authProvider.login(
-      _teamNameController.text.trim(),
+      _phoneController.text.trim(),
       _passwordController.text,
     );
 
-    // if (success && mounted) {
-    //   _navigateToHome(authProvider.currentUser!);
-    // } else if (mounted && authProvider.errorMessage != null) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: Text(authProvider.errorMessage!),
-    //       backgroundColor: Colors.red,
-    //     ),
-    //   );
-    // }
+    if (success && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PickerScreen()),
+      );
+    } else if (mounted && authProvider.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // void _navigateToHome(UserModel user) {
@@ -103,15 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
                   TextFormField(
-                    controller: _teamNameController,
+                    controller: _phoneController,
                     textDirection: TextDirection.ltr,
+                    keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      labelText: 'اسم الفريق',
-                      prefixIcon: Icon(Icons.groups_outlined),
+                      labelText: 'رقم الجوال',
+                      prefixIcon: Icon(Icons.phone_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'الرجاء إدخال اسم الفريق';
+                        return 'الرجاء إدخال رقم الجوال';
                       }
                       return null;
                     },
@@ -196,12 +200,10 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          _buildTestCredential('سوبر فايزر', 'supervisor'),
-          _buildTestCredential('بيكر', 'picker'),
-          _buildTestCredential('مراقب جودة', 'qc'),
+          _buildTestCredential('بيكر', '966501111003'),
           const SizedBox(height: 4),
           Text(
-            'كلمة المرور: 123456',
+            'كلمة المرور: picker123',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -212,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTestCredential(String role, String teamName) {
+  Widget _buildTestCredential(String role, String phone) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -225,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           Text(
-            teamName,
+            phone,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],

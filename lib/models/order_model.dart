@@ -11,6 +11,8 @@ class OrderItem {
   final String barcode;
   final List<String> locations;
   final int requiredQuantity;
+  final String? imageUrl;
+  final String? unitName;
   int pickedQuantity;
   bool isPicked;
 
@@ -20,6 +22,8 @@ class OrderItem {
     required this.barcode,
     required this.locations,
     required this.requiredQuantity,
+    this.imageUrl,
+    this.unitName,
     this.pickedQuantity = 0,
     this.isPicked = false,
   });
@@ -39,6 +43,8 @@ class OrderItem {
       'requiredQuantity': requiredQuantity,
       'pickedQuantity': pickedQuantity,
       'isPicked': isPicked,
+      'imageUrl': imageUrl,
+      'unitName': unitName,
     };
   }
 
@@ -61,6 +67,8 @@ class OrderItem {
       requiredQuantity: json['requiredQuantity'],
       pickedQuantity: json['pickedQuantity'] ?? 0,
       isPicked: json['isPicked'] ?? false,
+      imageUrl: json['imageUrl'],
+      unitName: json['unitName'],
     );
   }
 }
