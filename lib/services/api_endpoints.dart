@@ -23,6 +23,9 @@ class ApiEndpoints {
   static const String products = '/picker/products';
   static const String scanProduct = '/picker/products/scan';
 
+  // ==================== Master Picker ====================
+  static const String masterPickingTasks = '/picking/tasks';
+
   // ==================== Picker ====================
   static const String pickerProfile = '/picker/profile';
   static const String pickerStats = '/picker/stats';

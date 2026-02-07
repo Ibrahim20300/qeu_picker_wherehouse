@@ -2,6 +2,7 @@ enum UserRole {
   supervisor,
   picker,
   qc,
+  masterPicker,
 }
 
 class UserModel {
@@ -81,6 +82,8 @@ class UserModel {
         return 'بيكر';
       case UserRole.qc:
         return 'مراقب جودة';
+      case UserRole.masterPicker:
+        return 'ماستر بيكر';
     }
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../constants/app_colors.dart';
 import 'login_screen.dart';
 import 'pciker/picker_home_screen.dart';
+import 'master_picker/master_picker_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,11 +27,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
+    Widget homeScreen;
+    if (isLoggedIn) {
+      final role = authProvider.currentUser?.role;
+      homeScreen = role == UserRole.masterPicker
+          ? const MasterPickerHomeScreen()
+          : const PickerScreen();
+    } else {
+      homeScreen = const LoginScreen();
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => isLoggedIn ? const PickerScreen() : const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => homeScreen),
     );
   }
 

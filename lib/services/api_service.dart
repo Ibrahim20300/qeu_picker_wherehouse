@@ -63,10 +63,22 @@ class ApiService {
     }
   }
 
+  // ==================== Generic ====================
+
+  Future<Map<String, dynamic>> getRequest(String endpoint) async {
+    final response = await _client.get(
+      ApiEndpoints.uri(endpoint),
+      headers: _headers,
+    );
+    return await _handleResponse(response);
+  }
+
   // ==================== Picker Auth ====================
 
   Future<LoginResponse> pickerLogin(String phone, String password) async {
     final response = await _client.post(
+
+      
       ApiEndpoints.uri(ApiEndpoints.pickerLogin),
       headers: _headers,
       body: jsonEncode({
@@ -214,7 +226,9 @@ class ApiService {
 
     final roleStr = role.toString().toLowerCase();
 
-    if (roleStr.contains('supervisor') || roleStr.contains('super')) {
+    if (roleStr.contains('master_picker') || roleStr.contains('master')) {
+      return UserRole.masterPicker;
+    } else if (roleStr.contains('supervisor') || roleStr.contains('super')) {
       return UserRole.supervisor;
     } else if (roleStr.contains('qc') || roleStr.contains('quality')) {
       return UserRole.qc;

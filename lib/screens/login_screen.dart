@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import 'pciker/picker_home_screen.dart';
+import 'master_picker/master_picker_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,9 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
+      final role = authProvider.currentUser?.role;
+      final Widget homeScreen = role == UserRole.masterPicker
+          ? const MasterPickerHomeScreen()
+          : const PickerScreen();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const PickerScreen()),
+        MaterialPageRoute(builder: (_) => homeScreen),
       );
     } else if (mounted && authProvider.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
