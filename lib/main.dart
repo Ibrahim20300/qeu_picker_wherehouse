@@ -8,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/orders_provider.dart';
 import 'providers/picker_provider.dart';
+import 'providers/picking_provider.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UsersProvider()),
         ChangeNotifierProvider(create: (_) => OrdersProvider()),
         ChangeNotifierProvider(create: (_) => PickerProvider()),
+        ChangeNotifierProvider(create: (_) => PickingProvider()),
       ],
       child: MaterialApp(
         title: 'QEU Picker',

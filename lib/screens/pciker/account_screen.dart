@@ -147,6 +147,8 @@ class _AccountScreenState extends State<AccountScreen> {
             _buildStatsCard(picker),
             const SizedBox(height: 16),
             _buildInfoCard(picker),
+            const SizedBox(height: 16),
+            _buildLanguageToggle(),
             const SizedBox(height: 24),
             _buildLogoutButton(),
           ],
@@ -374,6 +376,46 @@ class _AccountScreenState extends State<AccountScreen> {
             textDirection: TextDirection.ltr,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageToggle() {
+    final apiService = context.read<AuthProvider>().apiService;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.language, color: AppColors.primary),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'اللغة',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ToggleButtons(
+              isSelected: [apiService.language == 'ar', apiService.language == 'en'],
+              onPressed: (index) {
+                setState(() {
+                  apiService.setLanguage(index == 0 ? 'ar' : 'en');
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              selectedColor: Colors.white,
+              fillColor: AppColors.primary,
+              constraints: const BoxConstraints(minWidth: 60, minHeight: 36),
+              children: const [
+                Text('عربي', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('EN', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

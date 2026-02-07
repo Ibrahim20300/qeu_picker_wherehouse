@@ -31,12 +31,20 @@ class LoginResponse {
 class ApiService {
   final http.Client _client;
   String? _accessToken;
+  String _language = 'ar';
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
+
+  String get language => _language;
+
+  void setLanguage(String lang) {
+    _language = lang;
+  }
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'Accept-Language': _language,
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
 
@@ -135,6 +143,53 @@ class ApiService {
     final response = await _client.get(
       ApiEndpoints.uri(ApiEndpoints.taskDetails(taskId)),
       headers: _headers,
+    );
+
+    return await _handleResponse(response);
+  }
+
+  // ==================== Picking Submission ====================
+
+  Future<Map<String, dynamic>> scanTaskItem(String taskId, String barcode, int quantity) async {
+    final response = await _client.post(
+      ApiEndpoints.uri(ApiEndpoints.scanTask(taskId)),
+      headers: _headers,
+      body: jsonEncode({
+        'barcode': barcode,
+        'quantity': quantity,
+      }),
+    );
+
+    return await _handleResponse(response);
+  }
+
+  Future<Map<String, dynamic>> completeTask(String taskId, int packageCount) async {
+    final response = await _client.post(
+      ApiEndpoints.uri(ApiEndpoints.completeTask(taskId)),
+      headers: _headers,
+      body: jsonEncode({'package_count': packageCount}),
+    );
+
+    return await _handleResponse(response);
+  }
+
+  // ==================== Item Exception ====================
+
+  Future<Map<String, dynamic>> reportItemException(
+    String taskId,
+    String itemId, {
+    required String exceptionType,
+    required int quantity,
+    String? note,
+  }) async {
+    final response = await _client.post(
+      ApiEndpoints.uri(ApiEndpoints.itemException(taskId, itemId)),
+      headers: _headers,
+      body: jsonEncode({
+        'exceptionType': exceptionType,
+        'quantity': quantity,
+        if (note != null && note.isNotEmpty) 'note': note,
+      }),
     );
 
     return await _handleResponse(response);

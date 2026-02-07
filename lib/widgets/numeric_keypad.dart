@@ -18,25 +18,33 @@ class NumericKeypad extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
+          
           Row(
             children: [
-              _buildButton('1'),
+     _buildButton('3'),
               _buildButton('2'),
-              _buildButton('3'),
+              _buildButton('1'),
+
+                       
+
             ],
           ),
           Row(
             children: [
+                _buildButton('6'),
+                    _buildButton('5'),
               _buildButton('4'),
-              _buildButton('5'),
-              _buildButton('6'),
+          
+            
             ],
           ),
           Row(
             children: [
+                   _buildButton('9'),
+                       _buildButton('8'),
               _buildButton('7'),
-              _buildButton('8'),
-              _buildButton('9'),
+          
+         
             ],
           ),
           Row(

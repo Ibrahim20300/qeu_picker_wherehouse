@@ -1,3 +1,5 @@
+import '../helpers/image_helper.dart';
+
 enum OrderStatus {
   pending,
   inProgress,
@@ -6,24 +8,32 @@ enum OrderStatus {
 }
 
 class OrderItem {
+  final String id; // task item id from API
   final String productId;
   final String productName;
   final String barcode;
+  final List<String> barcodes;
   final List<String> locations;
   final int requiredQuantity;
   final String? imageUrl;
   final String? unitName;
+  final String? zone;
+  final String status;
   int pickedQuantity;
   bool isPicked;
 
   OrderItem({
+    this.id = '',
     required this.productId,
     required this.productName,
     required this.barcode,
+    this.barcodes = const [],
     required this.locations,
     required this.requiredQuantity,
     this.imageUrl,
     this.unitName,
+    this.zone,
+    this.status = '',
     this.pickedQuantity = 0,
     this.isPicked = false,
   });
@@ -39,12 +49,14 @@ class OrderItem {
       'productId': productId,
       'productName': productName,
       'barcode': barcode,
+      'barcodes': barcodes,
       'locations': locations,
       'requiredQuantity': requiredQuantity,
       'pickedQuantity': pickedQuantity,
       'isPicked': isPicked,
       'imageUrl': imageUrl,
       'unitName': unitName,
+      'zone': zone,
     };
   }
 
@@ -63,12 +75,51 @@ class OrderItem {
       productId: json['productId'],
       productName: json['productName'],
       barcode: json['barcode'],
+      barcodes: json['barcodes'] != null ? List<String>.from(json['barcodes']) : [],
       locations: locs,
       requiredQuantity: json['requiredQuantity'],
       pickedQuantity: json['pickedQuantity'] ?? 0,
       isPicked: json['isPicked'] ?? false,
       imageUrl: json['imageUrl'],
       unitName: json['unitName'],
+      zone: json['zone'],
+    );
+  }
+
+  /// تحويل من بيانات الـ API (task item)
+  factory OrderItem.fromTaskJson(Map<String, dynamic> json) {
+    final barcodes = json['barcodes'] as List<dynamic>? ?? [];
+    final barcode = barcodes.isNotEmpty ? barcodes.first.toString() : '';
+
+    final locationsData = json['locations'] as List<dynamic>? ?? [];
+    final locations = locationsData.map((loc) {
+      if (loc is Map<String, dynamic>) {
+        return loc['full_code']?.toString() ?? '';
+      }
+      return loc.toString();
+    }).where((loc) => loc.isNotEmpty).toList();
+
+    final requiredQty = json['ordered_quantity'] ?? 0;
+    final pickedQty = json['picked_quantity'] ?? 0;
+    final status = json['status']?.toString() ?? '';
+    final isPicked = status == 'ITEM_PICKED' || status == 'ITEM_OUT_OF_STOCK' || (pickedQty >= requiredQty && requiredQty > 0);
+
+    return OrderItem(
+      id: json['id']?.toString() ?? '',
+      productId: json['product_id']?.toString() ?? '',
+      productName: json['product_name']?.toString() ?? '',
+      barcode: barcode,
+      barcodes: barcodes.map((b) => b.toString()).toList(),
+      locations: locations.isNotEmpty ? locations : [''],
+      requiredQuantity: requiredQty,
+      pickedQuantity: pickedQty,
+      isPicked: isPicked,
+      imageUrl: json['product_image'] != null
+          ? ImageHelper.buildImageUrl(json['product_image'].toString(), height: 600, quality: 90)
+          : null,
+      unitName: json['unit_name']?.toString(),
+      zone: json['zone']?.toString(),
+      status: status,
     );
   }
 }

@@ -1,3 +1,5 @@
+import '../helpers/image_helper.dart';
+
 class ProductModel {
   final String id;
   final String barcode;
@@ -51,7 +53,9 @@ class ProductModel {
       name: json['name'],
       location: json['location'],
       quantity: json['quantity'],
-      imageUrl: json['imageUrl'],
+      imageUrl: json['imageUrl'] != null
+          ? ImageHelper.buildImageUrl(json['imageUrl'], height: 600, quality: 90)
+          : null,
     );
   }
 }

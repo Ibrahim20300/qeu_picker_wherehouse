@@ -9,7 +9,7 @@ class SnackbarHelper {
     String message, {
     Color backgroundColor = AppColors.success,
     IconData? icon,
-    Duration duration = const Duration(seconds: 2),
+    Duration duration = const Duration(milliseconds: 400),
     bool floating = false,
   }) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();

@@ -9,6 +9,9 @@ class ApiEndpoints {
   static const String pickingTasks = '/picker/tasks';
   static String startPickingTask(String id) => '/picker/tasks/$id/start';
   static String taskDetails(String id) => '/picker/tasks/$id';
+  static String scanTask(String id) => '/picker/tasks/$id/scan';
+  static String completeTask(String id) => '/picker/tasks/$id/complete';
+  static String itemException(String taskId, String itemId) => '/picker/tasks/$taskId/items/$itemId/exception';
 
   // ==================== Orders ====================
   static const String orders = '/picker/orders';

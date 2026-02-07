@@ -2,9 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/picking_provider.dart';
+import 'manual_barcode_screen.dart';
 
 /// شاشة التحضير الاحترافية - منتج واحد في كل مرة
 class PickingScreen extends StatefulWidget {
@@ -21,55 +25,24 @@ class _PickingScreenState extends State<PickingScreen> {
   final _scanFocusNode = FocusNode();
   Timer? _focusTimer;
 
-  int _currentItemIndex = 0;
-  int _currentLocationIndex = 0;
-  bool _locationVerified = false;
-
-  // Local state for items
-  late List<OrderItem> _items;
-  List<OrderItem> _completedItems = [];
-  List<OrderItem> _missingItems = [];
-
-  List<OrderItem> get _remainingItems => _items.where((item) =>
-      !item.isPicked && !_missingItems.contains(item)).toList();
-
-  OrderItem? get _currentItem {
-    final remaining = _remainingItems;
-    if (remaining.isEmpty) return null;
-    if (_currentItemIndex >= remaining.length) {
-      _currentItemIndex = 0;
-    }
-    return remaining[_currentItemIndex];
-  }
-
-  String get _currentLocation {
-    final item = _currentItem;
-    if (item == null || item.locations.isEmpty) return '';
-    if (_currentLocationIndex >= item.locations.length) {
-      _currentLocationIndex = 0;
-    }
-    return item.locations[_currentLocationIndex];
-  }
-
   @override
   void initState() {
     super.initState();
-    // Initialize local state from the passed order
-    _items = List.from(widget.order.items);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pickingProvider = context.read<PickingProvider>();
+      final authProvider = context.read<AuthProvider>();
+      pickingProvider.setApiService(authProvider.apiService);
+      pickingProvider.startPicking(widget.order);
       _setupScanning();
     });
   }
 
   void _setupScanning() {
     _scanController.addListener(_onScanInput);
-    // استدعاء _requestFocus كل 50ms
     _focusTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-          SystemChannels.textInput.invokeMethod('TextInput.hide');
-
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
       _requestFocus();
-                SystemChannels.textInput.invokeMethod('TextInput.hide');
-
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
     });
   }
 
@@ -92,131 +65,75 @@ class _PickingScreenState extends State<PickingScreen> {
   }
 
   void _processScan(String scannedValue) {
-    if (!_locationVerified) {
-      // التحقق من الموقع أولاً
-      _verifyLocation(scannedValue);
-    } else {
-      // مسح الباركود بعد التحقق من الموقع
-      _scanBarcode(scannedValue);
+    final provider = context.read<PickingProvider>();
+    final result = provider.processScan(scannedValue);
+
+    switch (result) {
+      case ScanResult.locationVerified:
+        HapticFeedback.mediumImpact();
+        SnackbarHelper.success(context, 'تم التحقق من الموقع ✓', floating: true);
+        break;
+      case ScanResult.barcodeAccepted:
+        HapticFeedback.mediumImpact();
+        final item = provider.currentItem;
+        if (item != null) {
+          final remaining = item.requiredQuantity - item.pickedQuantity;
+          SnackbarHelper.success(
+            context,
+            'تم التقاط 1 - المتبقي: $remaining',
+            floating: true,
+          );
+        }
+        break;
+      case ScanResult.itemComplete:
+        HapticFeedback.mediumImpact();
+        _showItemCompleteAnimation(() {
+          provider.moveToNextItem();
+        });
+        break;
+      case ScanResult.orderComplete:
+        HapticFeedback.mediumImpact();
+        _showItemCompleteAnimation(() {
+          _showOrderCompleteDialog();
+        });
+        break;
+      case ScanResult.wrongLocation:
+        HapticFeedback.heavyImpact();
+        SnackbarHelper.error(
+          context,
+          'موقع خاطئ! المطلوب: ${provider.currentLocation}',
+          floating: true,
+        );
+        break;
+      case ScanResult.wrongBarcode:
+        HapticFeedback.heavyImpact();
+        SnackbarHelper.error(context, 'باركود خاطئ!', floating: true);
+        break;
+      case ScanResult.scanLocationFirst:
+        HapticFeedback.heavyImpact();
+        SnackbarHelper.error(
+          context,
+          'امسح الموقع أولاً! (${provider.currentLocation})',
+          floating: true,
+        );
+        break;
     }
     _requestFocus();
   }
 
-  void _verifyLocation(String scannedLocation) {
-    print(scannedLocation);
-    final currentLoc = _currentLocation;
-    print(currentLoc);
-    final item = _currentItem;
-
-    // تحقق إذا كان المستخدم مسح باركود المنتج بدلاً من الموقع
-    if (item != null && scannedLocation == item.barcode) {
-      HapticFeedback.heavyImpact();
-      SnackbarHelper.error(
-        context,
-        'امسح الموقع أولاً! ($currentLoc)',
-        floating: true,
-      );
-      return;
-    }
-
-    if (scannedLocation.toUpperCase() == currentLoc.toUpperCase()) {
-      setState(() {
-        _locationVerified = true;
-      });
-      HapticFeedback.mediumImpact();
-      SnackbarHelper.success(context, 'تم التحقق من الموقع ✓', floating: true);
-    } else {
-      HapticFeedback.heavyImpact();
-      SnackbarHelper.error(
-        context,
-        'موقع خاطئ! المطلوب: $currentLoc',
-        floating: true,
-      );
-    }
-  }
-
-  void _scanBarcode(String barcode) {
-    final item = _currentItem;
-    if (item == null) return;
-
-    if (barcode == item.barcode) {
-      // Update local state
-      setState(() {
-        item.pickedQuantity++;
-        if (item.pickedQuantity >= item.requiredQuantity) {
-          item.isPicked = true;
-        }
-      });
-
-      final remaining = item.requiredQuantity - item.pickedQuantity;
-      final isComplete = item.isPicked;
-
-      HapticFeedback.mediumImpact();
-
-      if (isComplete) {
-        // المنتج اكتمل - الانتقال للمنتج التالي
-        _showItemCompleteAnimation(() {
-          _moveToNextItem();
-        });
-      } else {
-        // تحديث العداد فقط
-        SnackbarHelper.success(
-          context,
-          'تم التقاط 1 - المتبقي: $remaining',
-          floating: true,
-        );
-      }
-    } else {
-      HapticFeedback.heavyImpact();
-      SnackbarHelper.error(context, 'باركود خاطئ!', floating: true);
-    }
-  }
-
   void _showItemCompleteAnimation(VoidCallback onComplete) {
+    final provider = context.read<PickingProvider>();
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => _ItemCompleteDialog(
-        itemName: _currentItem?.productName ?? '',
+        itemName: provider.currentItem?.productName ?? '',
         onDismiss: () {
           Navigator.pop(context);
           onComplete();
         },
       ),
     );
-  }
-
-  void _moveToNextItem() {
-    final remaining = _remainingItems;
-
-    if (remaining.isEmpty) {
-      // كل المنتجات اكتملت
-      _showOrderCompleteDialog();
-    } else {
-      setState(() {
-        _currentItemIndex = 0;
-        _currentLocationIndex = 0;
-        _locationVerified = false;
-      });
-    }
-  }
-
-  /// تخطي المنتج الحالي والانتقال للتالي (بدون إزالته من القائمة)
-  void _skipToNextItem() {
-    final remaining = _remainingItems;
-
-    if (remaining.length <= 1) {
-      // لا يوجد منتج آخر للانتقال إليه
-      SnackbarHelper.info(context, 'لا يوجد منتج آخر', floating: true);
-      return;
-    }
-
-    setState(() {
-      // الانتقال للمنتج التالي مع الدوران للبداية إذا وصلنا للنهاية
-      _currentItemIndex = (_currentItemIndex + 1) % remaining.length;
-      _currentLocationIndex = 0;
-      _locationVerified = false;
-    });
   }
 
   void _showOrderCompleteDialog() {
@@ -241,104 +158,75 @@ class _PickingScreenState extends State<PickingScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context, true); // العودة مع نتيجة النجاح
+              Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
             ),
-            child: const Text('متابعة'),
+            child: const Text('مراجعة'),
           ),
         ],
       ),
     );
   }
 
-  void _confirmMarkAsMissing() {
-    final item = _currentItem;
+  void _showExceptionDialog() {
+    final provider = context.read<PickingProvider>();
+    final item = provider.currentItem;
     if (item == null) return;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.help_outline, color: AppColors.warning),
-            SizedBox(width: 8),
-            Text('تأكيد'),
-          ],
-        ),
-        content: Text('هل المنتج "${item.productName}" غير موجود في الموقع الحالي؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _markAsMissing();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('نعم، غير موجود',style: TextStyle(color: Colors.white  ),),
-          ),
-        ],
+      builder: (dialogContext) => _ExceptionReportDialog(
+        item: item,
+        onSubmit: (exceptionType, quantity, note) async {
+          final authProvider = context.read<AuthProvider>();
+          final order = provider.currentOrder;
+          if (order == null) return;
+
+          try {
+            await authProvider.apiService.reportItemException(
+              order.id,
+              item.id,
+              exceptionType: exceptionType,
+              quantity: quantity,
+              note: note,
+            );
+
+            // Mark as missing locally
+            provider.markAsMissing();
+
+            if (mounted) {
+              SnackbarHelper.success(context, 'تم الإبلاغ عن المشكلة بنجاح', floating: true);
+              if (provider.remainingItems.isEmpty) {
+                _showOrderCompleteDialog();
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              SnackbarHelper.error(context, 'فشل الإبلاغ. حاول مرة أخرى', floating: true);
+            }
+          }
+        },
       ),
     );
   }
 
-  void _markAsMissing() {
-    final item = _currentItem;
-    if (item == null) return;
+  Future<void> _openManualBarcode() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => const ManualBarcodeScreen()),
+    );
 
-    // إذا كان هناك موقع آخر، انتقل إليه أولاً
-    if (_currentLocationIndex < item.locations.length - 1) {
-      setState(() {
-        _currentLocationIndex++;
-        _locationVerified = false;
-      });
-      SnackbarHelper.info(
-        context,
-        'جرب الموقع التالي: ${_currentLocation}',
-        floating: true,
-      );
-      return;
+    if (result == null || !mounted) return;
+
+    final barcode = result['barcode'] as String;
+    final quantity = result['quantity'] as int;
+
+    for (int i = 0; i < quantity; i++) {
+      _processScan(barcode);
     }
-
-    // لا توجد مواقع أخرى - اعرض دايلوج التأكيد
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber, color: AppColors.warning),
-            SizedBox(width: 8),
-            Text('تحديد كمفقود'),
-          ],
-        ),
-        content: Text('هل تريد تحديد "${item.productName}" كمنتج مفقود؟\n\nتم البحث في جميع المواقع (${item.locations.length})'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _missingItems.add(item);
-              });
-              _moveToNextItem();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -352,51 +240,55 @@ class _PickingScreenState extends State<PickingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = _currentItem;
-    final remaining = _remainingItems;
-    final completed = _items.where((i) => i.isPicked).toList();
+    return Consumer<PickingProvider>(
+      builder: (context, provider, _) {
+        final item = provider.currentItem;
+        final remaining = provider.remainingItems;
+        final completed = provider.completedItems;
 
-    if (item == null) {
-      return _buildEmptyState();
-    }
+        if (item == null) {
+          return _buildEmptyState();
+        }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Stack(
               children: [
-                _buildHeaderLocal(remaining.length, completed.length),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('امسح الموقع أولا', style: TextStyle(fontSize: 16)),
-                        _buildLocationSection(item),
-                        const SizedBox(height: 16),
-                        _buildProductCard(item),
-                        const SizedBox(height: 16),
-                        _buildQuantitySection(item),
-                        const SizedBox(height: 24),
-                        _buildActions(),
-                      ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeaderLocal(remaining.length, completed.length, provider),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('امسح الموقع أولا', style: TextStyle(fontSize: 16)),
+                            SizedBox(height: 8),
+                            _buildLocationSection(item, provider),
+                            const SizedBox(height: 16),
+                            _buildProductCard(item),
+                            const SizedBox(height: 16),
+                            _buildQuantitySection(item),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
+                _buildHiddenScanField(),
               ],
             ),
-            _buildHiddenScanField(),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildEmptyState() {  
+  Widget _buildEmptyState() {
     return Scaffold(
       appBar: AppBar(
         title: const Text('التحضير'),
@@ -424,9 +316,11 @@ class _PickingScreenState extends State<PickingScreen> {
     );
   }
 
-  Widget _buildHeaderLocal(int remaining, int completed) {
-    final total = remaining + completed + _missingItems.length;
-    final done = completed + _missingItems.length;
+  Widget _buildHeaderLocal(int remaining, int completed, PickingProvider provider) {
+    final total = remaining + completed + provider.missingItems.length;
+    final apiDone = provider.items.where((i) => i.isPicked && i.status != 'ITEM_PENDING').length;
+    final sessionDone = provider.items.where((i) => i.isPicked && i.status == 'ITEM_PENDING').length;
+    final done = apiDone + sessionDone + provider.missingItems.length;
     final progress = total > 0 ? (done / total) : 0.0;
 
     return Container(
@@ -464,19 +358,47 @@ class _PickingScreenState extends State<PickingScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '${(progress * 100).toInt()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              PopupMenuButton<String>(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.more_vert, color: Colors.white),
                 ),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'missing':
+                      _showExceptionDialog();
+                      break;
+                    case 'manual':
+                      _openManualBarcode();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'manual',
+                    child: Row(
+                      children: [
+                        Icon(Icons.keyboard, color: AppColors.primary),
+                        SizedBox(width: 8),
+                        Text('إدخال باركود يدوي'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'missing',
+                    child: Row(
+                      children: [
+                        Icon(Icons.cancel, color: AppColors.error),
+                        SizedBox(width: 8),
+                        Text('ابلاغ عن مشكلة'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -495,99 +417,6 @@ class _PickingScreenState extends State<PickingScreen> {
     );
   }
 
-  Widget _buildProductStepper(int remainingCount, int completedCount) {
-    final total = remainingCount + completedCount;
-    if (total <= 1) return const SizedBox.shrink();
-   
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: Colors.white,
-      child: Column(
-        children: [
-          // شريط الخطوات
-          Row(
-            children: List.generate(total, (index) {
-              final isCompleted = index < completedCount;
-              final isCurrent = index == completedCount + _currentItemIndex;
-
-              return Expanded(
-                child: Row(
-                  children: [
-                    // الدائرة
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          if (!isCompleted && index >= completedCount) {
-                            setState(() {
-                              _currentItemIndex = index - completedCount;
-                              _currentLocationIndex = 0;
-                              _locationVerified = false;
-                            });
-                          }
-                        },
-                        child: Column(
-                          children: [
-                            Container(
-                              width: isCurrent ? 32 : 24,
-                              height: isCurrent ? 32 : 24,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isCompleted
-                                    ? AppColors.success
-                                    : isCurrent
-                                        ? AppColors.primary
-                                        : Colors.grey[300],
-                                border: isCurrent
-                                    ? Border.all(color: AppColors.primaryWithOpacity(0.3), width: 3)
-                                    : null,
-                              ),
-                              child: Center(
-                                child: isCompleted
-                                    ? const Icon(Icons.check, color: Colors.white, size: 16)
-                                    : Text(
-                                        '${index + 1}',
-                                        style: TextStyle(
-                                          color: isCurrent ? Colors.white : Colors.grey[600],
-                                          fontSize: isCurrent ? 14 : 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // الخط الواصل (إلا للعنصر الأخير)
-                    if (index < total - 1)
-                      Expanded(
-                        child: Container(
-                          height: 3,
-                          color: index < completedCount
-                              ? AppColors.success
-                              : Colors.grey[300],
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          // نص التقدم
-          Text(
-            'المنتج ${completedCount + _currentItemIndex + 1} من $total',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProductCard(OrderItem item) {
     return Card(
       elevation: 4,
@@ -596,9 +425,8 @@ class _PickingScreenState extends State<PickingScreen> {
         children: [
           // صورة المنتج
           Container(
-            height: 130,
+            height: 160,
             width: double.infinity,
-            
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius:
@@ -609,10 +437,8 @@ class _PickingScreenState extends State<PickingScreen> {
                 Center(
                   child: item.imageUrl != null && item.imageUrl!.isNotEmpty
                       ? ClipRRect(
-                        
-                        borderRadius: BorderRadiusGeometry.circular(16),
-                        child: CachedNetworkImage(
-                       
+                          borderRadius: BorderRadiusGeometry.circular(16),
+                          child: CachedNetworkImage(
                             imageUrl: item.imageUrl!,
                             fit: BoxFit.fitWidth,
                             placeholder: (_, __) => const CircularProgressIndicator(),
@@ -622,34 +448,13 @@ class _PickingScreenState extends State<PickingScreen> {
                               color: Colors.grey,
                             ),
                           ),
-                      )
+                        )
                       : const Icon(
                           Icons.inventory_2,
                           size: 64,
                           color: Colors.grey,
                         ),
                 ),
-                // Badge للترتيب
-                // Positioned(
-                //   top: 12,
-                //   right: 12,
-                //   child: Container(
-                //     padding:
-                //         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                //     decoration: BoxDecoration(
-                //       color: AppColors.primary,
-                //       borderRadius: BorderRadius.circular(20),
-                //     ),
-                //     child: Text(
-                //       'المنتج ${_currentItemIndex + 1}',
-                //       style: const TextStyle(
-                //         color: Colors.white,
-                //         fontWeight: FontWeight.bold,
-                //         fontSize: 12,
-                //       ),
-                //     ),
-                //   ),
-                // ),
               ],
             ),
           ),
@@ -659,7 +464,9 @@ class _PickingScreenState extends State<PickingScreen> {
             child: Column(
               children: [
                 Text(
-                  item.productName,
+                  item.unitName != null && item.unitName!.isNotEmpty
+                      ? '${item.productName} (${item.unitName})'
+                      : item.productName,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -667,20 +474,27 @@ class _PickingScreenState extends State<PickingScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryWithOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'الباركود: ${item.barcode}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                    ),
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.center,
+                  children: (item.barcodes.isNotEmpty ? item.barcodes : [item.barcode])
+                      .map((bc) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryWithOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              bc,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 14,
+                              ),
+                              textDirection: TextDirection.ltr,
+                            ),
+                          ))
+                      .toList(),
                 ),
               ],
             ),
@@ -690,8 +504,8 @@ class _PickingScreenState extends State<PickingScreen> {
     );
   }
 
-  Widget _buildLocationSection(OrderItem item) {
-    final color = _locationVerified ? AppColors.success : AppColors.warning;
+  Widget _buildLocationSection(OrderItem item, PickingProvider provider) {
+    final color = provider.locationVerified ? AppColors.success : AppColors.warning;
     final hasMultipleLocations = item.locations.length > 1;
 
     return Container(
@@ -705,17 +519,17 @@ class _PickingScreenState extends State<PickingScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            _locationVerified ? Icons.check_circle : Icons.location_on,
+            provider.locationVerified ? Icons.check_circle : Icons.location_on,
             color: color,
             size: 22,
           ),
           const SizedBox(width: 10),
           Text(
-            _currentLocation,
+            provider.currentLocation,
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: _locationVerified ? AppColors.success : AppColors.textPrimary,
+              color: provider.locationVerified ? AppColors.success : AppColors.textPrimary,
               letterSpacing: 1,
             ),
           ),
@@ -729,7 +543,7 @@ class _PickingScreenState extends State<PickingScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${_currentLocationIndex + 1}/${item.locations.length}',
+                '${provider.currentLocationIndex + 1}/${item.locations.length}',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],
@@ -833,85 +647,6 @@ class _PickingScreenState extends State<PickingScreen> {
     );
   }
 
-  Widget _buildScanStatus() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _locationVerified
-            ? AppColors.primaryWithOpacity(0.1)
-            : Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _locationVerified ? AppColors.primary : Colors.grey[300]!,
-          width: 2,
-          strokeAlign: BorderSide.strokeAlignOutside,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            _locationVerified ? Icons.qr_code_scanner : Icons.location_searching,
-            size: 48,
-            color: _locationVerified ? AppColors.primary : Colors.grey,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _locationVerified
-                ? 'جاهز لمسح الباركود'
-                : 'امسح باركود الموقع للمتابعة',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: _locationVerified ? AppColors.primary : Colors.grey[600],
-            ),
-          ),
-          if (_locationVerified) ...[
-            const SizedBox(height: 8),
-            Text(
-              'وجه الماسح نحو باركود المنتج',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _confirmMarkAsMissing,
-            icon: const Icon(Icons.search_off),
-            label: const Text('غير موجود في الموقع'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: const BorderSide(color: AppColors.error),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
-        // const SizedBox(width: 12),
-        // Expanded(
-        //   child: OutlinedButton.icon(
-        //     onPressed: _skipToNextItem,
-        //     icon: const Icon(Icons.skip_next),
-        //     label: const Text('تخطي'),
-        //     style: OutlinedButton.styleFrom(
-        //       foregroundColor: AppColors.pending,
-        //       side: const BorderSide(color: AppColors.pending),
-        //       padding: const EdgeInsets.symmetric(vertical: 14),
-        //     ),
-        //   ),
-        // ),
-      ],
-    );
-  }
-
   Widget _buildHiddenScanField() {
     return Positioned(
       left: -1000,
@@ -928,8 +663,7 @@ class _PickingScreenState extends State<PickingScreen> {
           decoration: const InputDecoration(border: InputBorder.none),
           onChanged: (value) {
             if (value.isEmpty) return;
-            print('📷 Scanned: $value');
-            // انتظر نهاية السطر أو استخدم delay
+            print('Scanned: $value');
             if (value.endsWith('\n') || value.endsWith('\r')) {
               final barcode = value.trim();
               if (barcode.isNotEmpty) {
@@ -937,7 +671,6 @@ class _PickingScreenState extends State<PickingScreen> {
               }
               _scanController.clear();
             } else {
-              // بعض الماسحات لا ترسل newline - استخدم delay
               Future.delayed(const Duration(milliseconds: 150), () {
                 if (mounted && _scanController.text.isNotEmpty && _scanController.text == value) {
                   final barcode = _scanController.text.trim();
@@ -978,7 +711,7 @@ class _ItemCompleteDialogState extends State<_ItemCompleteDialog>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _scaleAnimation = CurvedAnimation(
@@ -987,8 +720,8 @@ class _ItemCompleteDialogState extends State<_ItemCompleteDialog>
     );
     _controller.forward();
 
-    // إغلاق تلقائي بعد ثانيتين
-    Future.delayed(const Duration(seconds: 2), () {
+    // إغلاق تلقائي بعد ثانية
+    Future.delayed(const Duration(seconds: 1), () {
       if (mounted) widget.onDismiss();
     });
   }
@@ -1028,7 +761,7 @@ class _ItemCompleteDialogState extends State<_ItemCompleteDialog>
               ),
               const SizedBox(height: 16),
               const Text(
-                'تم الإكمال! 🎉',
+                'تم الإكمال!',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -1046,6 +779,181 @@ class _ItemCompleteDialogState extends State<_ItemCompleteDialog>
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// دايلوج الإبلاغ عن مشكلة في المنتج
+class _ExceptionReportDialog extends StatefulWidget {
+  final OrderItem item;
+  final Future<void> Function(String exceptionType, int quantity, String? note) onSubmit;
+
+  const _ExceptionReportDialog({
+    required this.item,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_ExceptionReportDialog> createState() => _ExceptionReportDialogState();
+}
+
+class _ExceptionReportDialogState extends State<_ExceptionReportDialog> {
+  String? _selectedType;
+  late int _quantity;
+  final _noteController = TextEditingController();
+  bool _isSubmitting = false;
+
+  static const _exceptionTypes = {
+    'EXCEPTION_OUT_OF_STOCK': {'label': 'غير متوفر', 'icon': Icons.remove_shopping_cart, 'color': Colors.orange},
+    'EXCEPTION_DAMAGED': {'label': 'تالف', 'icon': Icons.broken_image, 'color': Colors.red},
+    'EXCEPTION_EXPIRED': {'label': 'منتهي الصلاحية', 'icon': Icons.timer_off, 'color': Colors.purple},
+    'EXCEPTION_WRONG_ITEM': {'label': 'منتج خاطئ', 'icon': Icons.swap_horiz, 'color': Colors.blue},
+    'EXCEPTION_OTHER': {'label': 'أخرى', 'icon': Icons.more_horiz, 'color': Colors.grey},
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.item.requiredQuantity - widget.item.pickedQuantity;
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_selectedType == null) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await widget.onSubmit(
+        _selectedType!,
+        _quantity,
+        _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.report_problem, color: AppColors.error, size: 28),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'ابلاغ عن مشكلة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.item.productName,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            const Text('نوع المشكلة', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _exceptionTypes.entries.map((entry) {
+                final isSelected = _selectedType == entry.key;
+                final color = entry.value['color'] as Color;
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(entry.value['icon'] as IconData, size: 16,
+                          color: isSelected ? Colors.white : color),
+                      const SizedBox(width: 4),
+                      Text(entry.value['label'] as String),
+                    ],
+                  ),
+                  selected: isSelected,
+                  selectedColor: color,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  onSelected: (_) => setState(() => _selectedType = entry.key),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            // Row(
+            //   children: [
+            //     const Text('الكمية', style: TextStyle(fontWeight: FontWeight.bold)),
+            //     const Spacer(),
+            //     IconButton(
+            //       icon: const Icon(Icons.remove_circle_outline),
+            //       onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
+            //     ),
+            //     Text(
+            //       '$_quantity',
+            //       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            //     ),
+            //     IconButton(
+            //       icon: const Icon(Icons.add_circle_outline),
+            //       onPressed: _quantity < (widget.item.requiredQuantity - widget.item.pickedQuantity)
+            //           ? () => setState(() => _quantity++)
+            //           : null,
+            //     ),
+            //   ],
+            // ),
+            // const SizedBox(height: 12),
+            // TextField(
+            //   controller: _noteController,
+            //   decoration: InputDecoration(
+            //     hintText: 'ملاحظة (اختياري)',
+            //     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            //     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            //   ),
+            //   maxLines: 2,
+            // ),
+            // const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _selectedType != null && !_isSubmitting ? _submit : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('إرسال البلاغ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
       ),
     );

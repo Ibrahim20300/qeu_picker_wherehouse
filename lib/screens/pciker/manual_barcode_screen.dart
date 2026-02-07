@@ -12,6 +12,7 @@ class ManualBarcodeScreen extends StatefulWidget {
 class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
   String _barcode = '';
   int _quantity = 1;
+  bool _isAlphaMode = false;
 
   void _onNumberPressed(String number) {
     setState(() {
@@ -64,6 +65,18 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
       appBar: AppBar(
         title: const Text('إدخال باركود يدوي'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () => setState(() => _isAlphaMode = !_isAlphaMode),
+            icon: Text(
+              _isAlphaMode ? '123' : 'ABC',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -77,14 +90,20 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
           // ),
           // const SizedBox(height: 16),
           _buildBarcodeDisplay(),
-          const SizedBox(height: 16),
-          _buildQuantityCounter(),
-          const SizedBox(height: 16),
-          NumericKeypad(
-            onNumberPressed: _onNumberPressed,
-            onClear: _onClear,
-            onBackspace: _onBackspace,
-          ),
+          // const SizedBox(height: 16),
+        
+          const SizedBox(height: 12),
+          if (_isAlphaMode)
+            _buildAlphaKeypad()
+          else
+            NumericKeypad(
+              onNumberPressed: _onNumberPressed,
+              onClear: _onClear,
+              onBackspace: _onBackspace,
+            ),
+               const SizedBox(height: 12),
+              _buildQuantityCounter(),
+                 const SizedBox(height: 12),
           const Spacer(),
           _buildConfirmButton(),
           const SizedBox(height: 24),
@@ -180,6 +199,144 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
             onPressed: _incrementQuantity,
             icon: const Icon(Icons.add_circle, size: 36),
             color: AppColors.success,
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildAlphaKeypad() {
+    const rows = [
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+      ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+      ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        children: [
+          ...rows.map((row) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: row
+                      .map((letter) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                elevation: 2,
+                                child: InkWell(
+                                  onTap: () => _onNumberPressed(letter),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    height: 48,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      letter,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              )),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Material(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                      elevation: 2,
+                      child: InkWell(
+                        onTap: _onClear,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: Text(
+                            'C',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      elevation: 2,
+                      child: InkWell(
+                        onTap: () => _onNumberPressed('-'),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            '-',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Material(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                      elevation: 2,
+                      child: InkWell(
+                        onTap: _onBackspace,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: Text(
+                            '⌫',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

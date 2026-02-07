@@ -5,7 +5,9 @@ import 'package:barcode_widget/barcode_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
+import '../../providers/picking_provider.dart';
 import '../../models/order_model.dart';
+import '../../models/pick_record.dart';
 import '../../helpers/snackbar_helper.dart';
 import '../../constants/app_colors.dart';
 import '../../services/invoice_service.dart';
@@ -90,11 +92,26 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     final orderNumber = task['order_number']?.toString().replaceAll('#', '') ?? '';
     final status = task['status']?.toString() ?? '';
     final totalItems = task['total_items'] ?? 0;
-    final pickedItems = task['picked_items'] ?? 0;
     final customerName = task['customer_name'] ?? '';
     final items = task['items'] as List<dynamic>? ?? [];
     final isInProgress = status.toUpperCase() == 'TASK_IN_PROGRESS';
     final isCompleted = status.toUpperCase() == 'TASK_COMPLETED';
+
+    // Count picked from items list (exclude ITEM_PENDING)
+    final pickingProvider = context.watch<PickingProvider>();
+    final apiPickedFromItems = items.where((item) {
+      final s = (item as Map<String, dynamic>)['status']?.toString() ?? '';
+      return s != 'ITEM_PENDING';
+    }).length;
+    // Count session-completed items (were ITEM_PENDING, now isPicked)
+    final sessionCompletedItems = pickingProvider.items.where((i) =>
+        i.isPicked && i.status == 'ITEM_PENDING').length;
+    final sessionMissing = pickingProvider.missingItems.length;
+    final actualPicked = apiPickedFromItems + sessionCompletedItems + sessionMissing;
+    final hasPending = items.any((item) =>
+        (item as Map<String, dynamic>)['status']?.toString() == 'ITEM_PENDING');
+    final allDone = !hasPending && totalItems > 0;
+    final progress = totalItems > 0 ? actualPicked / totalItems : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -150,15 +167,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                             ],
                             const SizedBox(height: 12),
                             LinearProgressIndicator(
-                              value: totalItems > 0 ? pickedItems / totalItems : 0,
+                              value: progress.clamp(0.0, 1.0),
                               backgroundColor: Colors.grey[200],
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                pickedItems == totalItems ? AppColors.success : AppColors.primary,
+                                allDone ? AppColors.success : AppColors.primary,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '$pickedItems / $totalItems منتج',
+                              '$actualPicked / $totalItems منتج',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
@@ -172,13 +189,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    ...items.map((item) => _buildTaskItemCard(item as Map<String, dynamic>)),
+                    ...items.map((item) => _buildTaskItemCard(OrderItem.fromTaskJson(item as Map<String, dynamic>))),
                   ],
                 ),
               ),
             ),
           ),
-          // Bottom action button
+          // Bottom action buttons
           if (isInProgress && !isCompleted)
             Container(
               padding: const EdgeInsets.all(16),
@@ -195,22 +212,39 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
               child: SafeArea(
                 child: SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _onResumeTaskPicking(task),
-                    icon: const Icon(Icons.play_circle_fill),
-                    label: Text(
-                      'استكمال التحضير ($pickedItems/$totalItems)',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
+                  child: allDone
+                      ? ElevatedButton.icon(
+                          onPressed: () => _onCompleteTask(task),
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text(
+                            'إكمال الطلب',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () => _onResumeTaskPicking(task),
+                          icon: const Icon(Icons.play_circle_fill),
+                          label: Text(
+                            'استكمال التحضير ($actualPicked/$totalItems)',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -239,33 +273,42 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     }
   }
 
+  Future<void> _onCompleteTask(Map<String, dynamic> task) async {
+    final orderNumber = task['order_number']?.toString() ?? '';
+    final taskId = task['id']?.toString() ?? widget.taskId ?? '';
+
+    final bagsCount = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BagsCountScreen(orderNumber: orderNumber),
+      ),
+    );
+
+    if (bagsCount == null || !mounted) return;
+
+    try {
+      final pickingProvider = context.read<PickingProvider>();
+      final authProvider = context.read<AuthProvider>();
+
+      // Complete task with package count
+      await authProvider.apiService.completeTask(taskId, bagsCount);
+
+      pickingProvider.reset();
+
+      if (mounted) {
+        SnackbarHelper.success(context, 'تم إكمال الطلب بنجاح');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.error(context, 'فشل إكمال الطلب. حاول مرة أخرى');
+      }
+    }
+  }
+
   OrderModel _convertTaskToOrder(Map<String, dynamic> task) {
     final items = (task['items'] as List<dynamic>? ?? []).map((item) {
-      final itemMap = item as Map<String, dynamic>;
-
-      // Get first barcode from barcodes array
-      final barcodes = itemMap['barcodes'] as List<dynamic>? ?? [];
-      final barcode = barcodes.isNotEmpty ? barcodes.first.toString() : '';
-
-      // Extract full_code from locations array
-      final locationsData = itemMap['locations'] as List<dynamic>? ?? [];
-      final locations = locationsData.map((loc) {
-        if (loc is Map<String, dynamic>) {
-          return loc['full_code']?.toString() ?? '';
-        }
-        return loc.toString();
-      }).where((loc) => loc.isNotEmpty).toList();
-
-      return OrderItem(
-        productId: itemMap['product_id']?.toString() ?? '',
-        productName: itemMap['product_name']?.toString() ?? '',
-        barcode: barcode,
-        requiredQuantity: itemMap['ordered_quantity'] ?? 0,
-        pickedQuantity: itemMap['picked_quantity'] ?? 0,
-        locations: locations.isNotEmpty ? locations : [''],
-        imageUrl: itemMap['product_image']?.toString(),
-        unitName: itemMap['unit_name']?.toString(),
-      );
+      return OrderItem.fromTaskJson(item as Map<String, dynamic>);
     }).toList();
 
     return OrderModel(
@@ -340,24 +383,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
   }
 
-  Widget _buildTaskItemCard(Map<String, dynamic> item) {
-    final name = item['product_name']?.toString() ?? '';
-
-    // Get first barcode from barcodes array
-    final barcodes = item['barcodes'] as List<dynamic>? ?? [];
-    final barcode = barcodes.isNotEmpty ? barcodes.first.toString() : '';
-
-    final requiredQty = item['ordered_quantity'] ?? 0;
-    final pickedQty = item['picked_quantity'] ?? 0;
-
-    // Get location from locations array
-    final locationsData = item['locations'] as List<dynamic>? ?? [];
-    final location = locationsData.isNotEmpty && locationsData.first is Map<String, dynamic>
-        ? (locationsData.first as Map<String, dynamic>)['full_code']?.toString() ?? ''
-        : '';
-
-    final zone = item['zone']?.toString() ?? '';
-    final imageUrl = item['product_image']?.toString() ?? '';
+  Widget _buildTaskItemCard(OrderItem item) {
+    final zone = item.zone ?? '';
+    final pickingProvider = context.read<PickingProvider>();
+    final itemPickRecords = pickingProvider.pickRecords
+        .where((r) => r.productId == item.productId && r.quantity > 0)
+        .toList();
+    final isMissing = pickingProvider.missingItems.any((m) => m.productId == item.productId)
+        || item.status == 'ITEM_OUT_OF_STOCK';
+    final pickedCount = item.status == 'ITEM_PENDING'
+        ? itemPickRecords.length
+        : item.pickedQuantity + itemPickRecords.length;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -367,11 +403,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Product image
-            if (imageUrl.isNotEmpty)
+            if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
-                  imageUrl: imageUrl,
+                  imageUrl: item.imageUrl!,
                   width: 70,
                   height: 70,
                   fit: BoxFit.cover,
@@ -406,7 +442,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    item.productName,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -420,7 +456,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       Icon(Icons.qr_code, size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Text(
-                        barcode,
+                        item.barcode,
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                         textDirection: TextDirection.ltr,
                       ),
@@ -447,7 +483,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                             ),
                           ),
                         ),
-                      if (location.isNotEmpty)
+                      if (item.primaryLocation.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
@@ -460,7 +496,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                               const Icon(Icons.location_on, size: 12, color: AppColors.primary),
                               const SizedBox(width: 2),
                               Text(
-                                location,
+                                item.primaryLocation,
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
@@ -473,27 +509,127 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
-                          color: pickedQty == requiredQty
-                              ? AppColors.success.withValues(alpha: 0.1)
-                              : AppColors.pending.withValues(alpha: 0.1),
+                          color: isMissing
+                              ? AppColors.error.withValues(alpha: 0.1)
+                              : pickedCount >= item.requiredQuantity
+                                  ? AppColors.success.withValues(alpha: 0.1)
+                                  : AppColors.pending.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '$pickedQty / $requiredQty',
+                          isMissing ? 'مفقود' : '$pickedCount / ${item.requiredQuantity}',
                           style: TextStyle(
-                            color: pickedQty == requiredQty ? AppColors.success : AppColors.pending,
+                            color: isMissing
+                                ? AppColors.error
+                                : pickedCount >= item.requiredQuantity
+                                    ? AppColors.success
+                                    : AppColors.pending,
                             fontWeight: FontWeight.bold,
                             fontSize: 11,
                           ),
                         ),
                       ),
+                      if (item.unitName != null && item.unitName!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.unitName!,
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
+                  if (itemPickRecords.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    // _buildTaskPickRecords(itemPickRecords),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTaskPickRecords(List<PickRecord> records) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.successWithOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.successWithOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history, size: 14, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text(
+                'سجل المسح (${records.length})',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...records.map((record) => Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, size: 12, color: AppColors.success),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    record.barcode,
+                    style: const TextStyle(fontSize: 11),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryWithOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 10, color: AppColors.primary),
+                      const SizedBox(width: 2),
+                      Text(
+                        record.location,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          )),
+        ],
       ),
     );
   }
@@ -1135,10 +1271,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             itemBuilder: (context, index) {
               final item = items[index];
               final currentLocIndex = _getCurrentLocationIndex(item);
+              final pickingProvider = context.read<PickingProvider>();
+              final itemPickRecords = pickingProvider.pickRecords
+                  .where((r) => r.productId == item.productId && r.quantity > 0)
+                  .toList();
               return _OrderItemCard(
                 key: ValueKey('${item.barcode}_${item.pickedQuantity}_${item.isPicked}_$currentLocIndex'),
                 item: item,
                 currentLocationIndex: currentLocIndex,
+                pickRecords: itemPickRecords,
                 showNotFoundButton: showNotFoundButton,
                 canMarkMissing: isInProgress,
                 onMarkMissing: () => _showNextLocationOrMarkMissing(item),
@@ -1336,6 +1477,7 @@ class _OrderItemCard extends StatelessWidget {
   final VoidCallback onMarkMissing;
   final bool showNotFoundButton;
   final bool canMarkMissing;
+  final List<PickRecord> pickRecords;
 
   const _OrderItemCard({
     super.key,
@@ -1344,6 +1486,7 @@ class _OrderItemCard extends StatelessWidget {
     required this.onMarkMissing,
     this.showNotFoundButton = true,
     this.canMarkMissing = true,
+    this.pickRecords = const [],
   });
 
   /// الموقع الحالي المعروض
@@ -1484,6 +1627,84 @@ class _OrderItemCard extends StatelessWidget {
           _buildLocationAndQuantityRow(remaining),
           const SizedBox(height: 8),
           _buildBarcodeRow(),
+          if (pickRecords.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildPickRecordsSection(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPickRecordsSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.successWithOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.successWithOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history, size: 16, color: AppColors.success),
+              const SizedBox(width: 6),
+              Text(
+                'سجل المسح (${pickRecords.length})',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...pickRecords.map((record) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, size: 14, color: AppColors.success),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    record.barcode,
+                    style: const TextStyle(fontSize: 12),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryWithOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 10, color: AppColors.primary),
+                      const SizedBox(width: 2),
+                      Text(
+                        record.location,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          )),
         ],
       ),
     );
