@@ -3,6 +3,7 @@ class ApiEndpoints {
 
   // ==================== Auth ====================
   static const String pickerLogin = '/picker/login';
+  static const String refreshToken = '/picker/refresh-token';
   static const String pickerMe = '/picker/me';
 
   // ==================== Picking Tasks ====================

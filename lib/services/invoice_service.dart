@@ -55,7 +55,9 @@ class InvoiceService {
   }
 
   /// توليد PDF من بيانات المهمة الخام
-  static Future<pw.Document> _generatePdfFromTask(Map<String, dynamic> task) async {
+  static Future<pw.Document> _generatePdfFromTask(
+    Map<String, dynamic> task,
+  ) async {
     final pdf = pw.Document();
 
     final arabicFontBold = await PdfGoogleFonts.cairoBold();
@@ -80,7 +82,9 @@ class InvoiceService {
       } catch (_) {}
     }
 
-    final barcodeData = orderNumber.isNotEmpty ? '$orderNumber-$zone' : task['id'].toString();
+    final barcodeData = orderNumber.isNotEmpty
+        ? '$orderNumber-$zone'
+        : task['id'].toString();
 
     pdf.addPage(
       pw.Page(
@@ -93,7 +97,7 @@ class InvoiceService {
               // Position
               pw.Center(
                 child: pw.Text(
-                  position.isNotEmpty ? '${position}P' : '',
+                  position.isNotEmpty ? 'P${position}' : '',
                   style: pw.TextStyle(font: fontBold, fontSize: 45),
                 ),
               ),
@@ -157,7 +161,8 @@ class InvoiceService {
                       ),
                     ),
                   ),
-                  pw.Container(width: 1, height: 20, color: PdfColors.black),
+                  pw.Container(width: 1, height: 50, color: PdfColors.black),
+
                   pw.Expanded(
                     child: pw.Container(
                       padding: const pw.EdgeInsets.all(3),
@@ -229,7 +234,11 @@ class InvoiceService {
                   ),
                 ],
               ),
-
+              pw.SizedBox(height: 20),
+         pw.Center(child:pw.Text(
+                '${orderNumber.replaceAll('#', ' ')}',
+                style: pw.TextStyle(font: font, fontSize: 13),
+              ), ),     
               pw.Spacer(),
 
               // Footer

@@ -181,12 +181,11 @@ class _PickingScreenState extends State<PickingScreen> {
       builder: (dialogContext) => _ExceptionReportDialog(
         item: item,
         onSubmit: (exceptionType, quantity, note) async {
-          final authProvider = context.read<AuthProvider>();
           final order = provider.currentOrder;
           if (order == null) return;
 
           try {
-            await authProvider.apiService.reportItemException(
+            await provider.reportItemException(
               order.id,
               item.id,
               exceptionType: exceptionType,

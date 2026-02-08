@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
+import '../services/api_endpoints.dart';
 
 class MasterPickerProvider extends ChangeNotifier {
   ApiService? _apiService;
@@ -23,12 +24,13 @@ class MasterPickerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService!.getRequest('/picking/tasks');
+      final response = await _apiService!.get(ApiEndpoints.masterPickingTasks);
+      final data = _apiService!.handleResponse(response);
 
-      if (response['tasks'] != null) {
-        _tasks = response['tasks'] as List<dynamic>;
-      } else if (response['data'] != null) {
-        _tasks = response['data'] as List<dynamic>;
+      if (data['tasks'] != null) {
+        _tasks = data['tasks'] as List<dynamic>;
+      } else if (data['data'] != null) {
+        _tasks = data['data'] as List<dynamic>;
       } else {
         _tasks = [];
       }

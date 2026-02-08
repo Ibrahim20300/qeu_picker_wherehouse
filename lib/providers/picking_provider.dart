@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/order_model.dart';
 import '../models/pick_record.dart';
+import '../models/task_details_model.dart';
 import '../services/api_service.dart';
+import '../services/api_endpoints.dart';
 
 enum ScanResult { locationVerified, barcodeAccepted, itemComplete, orderComplete, wrongLocation, wrongBarcode, scanLocationFirst }
 
@@ -14,6 +16,11 @@ class PickingProvider extends ChangeNotifier {
   List<OrderItem> _items = [];
   List<OrderItem> _missingItems = [];
   List<PickRecord> _pickRecords = [];
+
+  // Task details state
+  TaskDetailsModel? _taskDetails;
+  bool _taskDetailsLoading = false;
+  String? _taskDetailsError;
 
   // Navigation state
   int _currentItemIndex = 0;
@@ -32,6 +39,9 @@ class PickingProvider extends ChangeNotifier {
   List<PickRecord> get pickRecords => _pickRecords;
   bool get locationVerified => _locationVerified;
   int get currentLocationIndex => _currentLocationIndex;
+  TaskDetailsModel? get taskDetails => _taskDetails;
+  bool get taskDetailsLoading => _taskDetailsLoading;
+  String? get taskDetailsError => _taskDetailsError;
 
   List<OrderItem> get remainingItems => _items.where((item) =>
       !item.isPicked && !_missingItems.contains(item)).toList();
@@ -83,6 +93,9 @@ class PickingProvider extends ChangeNotifier {
     _items = [];
     _missingItems = [];
     _pickRecords = [];
+    _taskDetails = null;
+    _taskDetailsLoading = false;
+    _taskDetailsError = null;
     _currentItemIndex = 0;
     _currentLocationIndex = 0;
     _locationVerified = false;
@@ -166,7 +179,12 @@ class PickingProvider extends ChangeNotifier {
   }
 
   void _attemptScan(_PendingScan scan) {
-    _apiService!.scanTaskItem(scan.taskId, scan.barcode, scan.quantity).catchError((e) {
+    _apiService!.post(
+      ApiEndpoints.scanTask(scan.taskId),
+      body: {'barcode': scan.barcode, 'quantity': scan.quantity},
+    ).then((response) {
+      _apiService!.handleResponse(response);
+    }).catchError((e) {
       debugPrint('Scan failed (attempt ${scan.retries + 1}): $e');
       scan.retries++;
       if (scan.retries < _maxRetries) {
@@ -175,7 +193,6 @@ class PickingProvider extends ChangeNotifier {
       } else {
         debugPrint('Scan dropped after $_maxRetries retries: ${scan.barcode}');
       }
-      return <String, dynamic>{};
     });
   }
 
@@ -246,7 +263,80 @@ class PickingProvider extends ChangeNotifier {
     moveToNextItem();
   }
 
-  // --- API Submission ---
+  // --- API Methods ---
+
+  Future<List<dynamic>> getPickingTasks() async {
+    if (_apiService == null) return [];
+
+    final response = await _apiService!.get(ApiEndpoints.pickingTasks);
+    final data = _apiService!.handleResponse(response);
+
+    if (data['tasks'] != null) {
+      return data['tasks'] as List<dynamic>;
+    } else if (data['data'] != null) {
+      return data['data'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<void> startPickingTask(String taskId) async {
+    if (_apiService == null) return;
+
+    final response = await _apiService!.post(
+      ApiEndpoints.startPickingTask(taskId),
+      body: {},
+    );
+    _apiService!.handleResponse(response);
+  }
+
+  Future<void> loadTaskDetails(String taskId) async {
+    if (_apiService == null) throw Exception('ApiService not initialized');
+
+    _taskDetailsLoading = true;
+    _taskDetailsError = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService!.get(ApiEndpoints.taskDetails(taskId));
+      final body = _apiService!.handleResponse(response);
+
+      // API may wrap task data in "task" or "data" key
+      final data = body['task'] as Map<String, dynamic>?
+          ?? body['data'] as Map<String, dynamic>?
+          ?? body;
+
+      debugPrint('Task details response keys: ${body.keys}');
+      _taskDetails = TaskDetailsModel.fromJson(data);
+    } on ApiException catch (e) {
+      _taskDetailsError = e.message;
+    } catch (e) {
+      debugPrint('Error loading task details: $e');
+      _taskDetailsError = 'فشل جلب تفاصيل المهمة';
+    } finally {
+      _taskDetailsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> reportItemException(
+    String taskId,
+    String itemId, {
+    required String exceptionType,
+    required int quantity,
+    String? note,
+  }) async {
+    if (_apiService == null) return {};
+
+    final response = await _apiService!.post(
+      ApiEndpoints.itemException(taskId, itemId),
+      body: {
+        'exceptionType': exceptionType,
+        'quantity': quantity,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+    );
+    return _apiService!.handleResponse(response);
+  }
 
   /// Get all pick data ready for backend submission
   Map<String, dynamic> getSubmissionData() {
@@ -263,6 +353,16 @@ class PickingProvider extends ChangeNotifier {
     };
   }
 
+  Future<void> completeTaskById(String taskId, int packageCount) async {
+    if (_apiService == null) return;
+
+    final response = await _apiService!.post(
+      ApiEndpoints.completeTask(taskId),
+      body: {'package_count': packageCount},
+    );
+    _apiService!.handleResponse(response);
+  }
+
   Future<bool> completeTask(int packageCount) async {
     if (_apiService == null || _currentOrder == null) return false;
 
@@ -270,7 +370,11 @@ class PickingProvider extends ChangeNotifier {
     _retryPendingScans();
 
     try {
-      await _apiService!.completeTask(_currentOrder!.id, packageCount);
+      final response = await _apiService!.post(
+        ApiEndpoints.completeTask(_currentOrder!.id),
+        body: {'package_count': packageCount},
+      );
+      _apiService!.handleResponse(response);
       return true;
     } catch (e) {
       debugPrint('Error completing task: $e');

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
@@ -5,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
 import '../../services/invoice_service.dart';
 import '../login_screen.dart';
+import 'task_detail_screen.dart';
 
 class MasterPickerHomeScreen extends StatefulWidget {
   const MasterPickerHomeScreen({super.key});
@@ -14,10 +16,42 @@ class MasterPickerHomeScreen extends StatefulWidget {
 }
 
 class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
+  final _barcodeController = TextEditingController();
+  final _barcodeFocusNode = FocusNode();
+  Timer? _scanDebounce;
+
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _barcodeFocusNode.addListener(_keepFocus);
+  }
+
+  void _keepFocus() {
+    if (!_barcodeFocusNode.hasFocus && mounted) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && !_barcodeFocusNode.hasFocus) {
+          _barcodeFocusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _barcodeFocusNode.removeListener(_keepFocus);
+    _scanDebounce?.cancel();
+    _barcodeController.dispose();
+    _barcodeFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onBarcodeChanged(String value) {
+    _scanDebounce?.cancel();
+    if (value.trim().isEmpty) return;
+    _scanDebounce = Timer(const Duration(milliseconds: 300), () {
+      _onBarcodeScanned(value);
+    });
   }
 
   void _loadTasks() {
@@ -25,6 +59,48 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
     final provider = context.read<MasterPickerProvider>();
     provider.init(authProvider.apiService);
     provider.fetchTasks();
+  }
+
+  String _convertArabicNumbers(String input) {
+    const arabic = '٠١٢٣٤٥٦٧٨٩';
+    const english = '0123456789';
+    var result = input;
+    for (var i = 0; i < arabic.length; i++) {
+      result = result.replaceAll(arabic[i], english[i]);
+    }
+    return result;
+  }
+
+  void _onBarcodeScanned(String barcode) {
+    if (barcode.trim().isEmpty) return;
+
+    final provider = context.read<MasterPickerProvider>();
+    final scanned = _convertArabicNumbers(barcode.trim());
+print(scanned);
+    // Barcode format: orderNumber-zone (e.g. "ORD123-Z01")
+    final orderNumber = scanned.contains('-')
+        ? scanned.substring(0, scanned.lastIndexOf('-'))
+        : scanned;
+
+    // Find matching task
+    final task = provider.tasks.cast<Map<String, dynamic>>().where((t) {
+      final taskOrderNumber = t['order_number']?.toString().replaceAll('#', '') ?? '';
+      return taskOrderNumber == orderNumber || taskOrderNumber == scanned;
+    }).firstOrNull;
+
+    _barcodeController.clear();
+    _barcodeFocusNode.requestFocus();
+
+    if (task != null) {
+      InvoiceService.printFromTask(task);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('لم يتم العثور على طلب: $scanned'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -56,63 +132,99 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
           ),
         ],
       ),
-      body: Consumer<MasterPickerProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (provider.errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    provider.errorMessage!,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _loadTasks,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('إعادة المحاولة'),
-                  ),
-                ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextFormField(
+              controller: _barcodeController,
+              focusNode: _barcodeFocusNode,
+              autofocus: true,
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(
+                hintText: 'امسح باركود الطلب...',
+                prefixIcon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  onPressed: () {
+                    _barcodeController.clear();
+                    _barcodeFocusNode.requestFocus();
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-            );
-          }
+              onChanged: _onBarcodeChanged,
+              onFieldSubmitted: (value) => _onBarcodeScanned(value),
+            ),
+          ),
+          Expanded(
+            child: Consumer<MasterPickerProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (provider.tasks.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'لا توجد مهام حالياً',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                if (provider.errorMessage != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          provider.errorMessage!,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadTasks,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('إعادة المحاولة'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (provider.tasks.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'لا توجد مهام حالياً',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () => provider.fetchTasks(),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: provider.tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = provider.tasks[index] as Map<String, dynamic>;
+                      return _buildTaskCard(task);
+                    },
                   ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => provider.fetchTasks(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: provider.tasks.length,
-              itemBuilder: (context, index) {
-                final task = provider.tasks[index] as Map<String, dynamic>;
-                return _buildTaskCard(task);
+                );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -133,9 +245,17 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => TaskDetailScreen(task: task)),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -212,6 +332,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

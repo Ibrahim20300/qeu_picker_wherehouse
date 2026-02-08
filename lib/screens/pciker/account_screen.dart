@@ -32,7 +32,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      final picker = await authProvider.apiService.getMe();
+      final picker = await authProvider.getMe();
       setState(() {
         _picker = picker;
         _isLoading = false;

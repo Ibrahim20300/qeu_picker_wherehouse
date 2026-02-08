@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/order_model.dart';
 import '../../models/picker_model.dart';
+import '../../providers/picking_provider.dart';
 import '../../services/api_service.dart';
 import '../login_screen.dart';
-import 'order_details_screen.dart';
+import 'task_details_screen.dart';
 
 class PickerScreen extends StatefulWidget {
   const PickerScreen({super.key});
@@ -39,15 +39,6 @@ class _PickerScreenState extends State<PickerScreen>
     );
   }
 
-  void _showOrderDetails(OrderModel order) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OrderDetailsScreen(order: order),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +63,7 @@ class _PickerScreenState extends State<PickerScreen>
   }
 
   Widget _buildOrdersTab() {
-    return _OrdersTab(onOrderTap: _showOrderDetails);
+    return const _OrdersTab();
   }
 
   Widget _buildAccountTab() {
@@ -108,7 +99,7 @@ class _AccountTabState extends State<_AccountTab> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      final picker = await authProvider.apiService.getMe();
+      final picker = await authProvider.getMe();
       setState(() {
         _picker = picker;
         _isLoading = false;
@@ -453,9 +444,7 @@ class _AccountTabState extends State<_AccountTab> {
 }
 
 class _OrdersTab extends StatefulWidget {
-  final Function(OrderModel) onOrderTap;
-
-  const _OrdersTab({required this.onOrderTap});
+  const _OrdersTab();
 
   @override
   State<_OrdersTab> createState() => _OrdersTabState();
@@ -477,15 +466,16 @@ class _OrdersTabState extends State<_OrdersTab> {
     if (taskId.isEmpty) return;
 
     try {
-      final authProvider = context.read<AuthProvider>();
-      await authProvider.apiService.startPickingTask(taskId);
+      final pickingProvider = context.read<PickingProvider>();
+      pickingProvider.setApiService(context.read<AuthProvider>().apiService);
+      await pickingProvider.startPickingTask(taskId);
 
       if (mounted) {
         // Navigate to OrderDetailsScreen with taskId
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => OrderDetailsScreen(taskId: taskId),
+            builder: (_) => TaskDetailsScreen(taskId: taskId),
           ),
         ).then((_) {
           // Refresh tasks when returning
@@ -520,8 +510,9 @@ class _OrdersTabState extends State<_OrdersTab> {
     });
 
     try {
-      final authProvider = context.read<AuthProvider>();
-      final tasks = await authProvider.apiService.getPickingTasks();
+      final pickingProvider = context.read<PickingProvider>();
+      pickingProvider.setApiService(context.read<AuthProvider>().apiService);
+      final tasks = await pickingProvider.getPickingTasks();
       setState(() {
         _tasks = tasks;
         _isLoading = false;
@@ -634,7 +625,7 @@ class _OrdersTabState extends State<_OrdersTab> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => OrderDetailsScreen(taskId: taskId),
+              builder: (_) => TaskDetailsScreen(taskId: taskId),
             ),
           ).then((_) => _loadTasks());
         },

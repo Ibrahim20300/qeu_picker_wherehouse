@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/user_model.dart';
-import '../models/picker_model.dart';
 import 'api_endpoints.dart';
 
 class ApiException implements Exception {
@@ -14,24 +12,21 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-class LoginResponse {
-  final String accessToken;
-  final String refreshToken;
-  final int expiresIn;
-  final UserModel user;
-
-  LoginResponse({
-    required this.accessToken,
-    required this.refreshToken,
-    required this.expiresIn,
-    required this.user,
-  });
-}
+/// Callback when tokens are refreshed successfully.
+typedef OnTokenRefreshed = void Function(String accessToken, String refreshToken);
+/// Callback when refresh fails and user must re-login.
+typedef OnAuthFailed = void Function();
 
 class ApiService {
   final http.Client _client;
   String? _accessToken;
+  String? _refreshToken;
   String _language = 'ar';
+  bool _isRefreshing = false;
+
+  /// Set these callbacks from AuthProvider to persist new tokens / force logout.
+  OnTokenRefreshed? onTokenRefreshed;
+  OnAuthFailed? onAuthFailed;
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -41,7 +36,7 @@ class ApiService {
     _language = lang;
   }
 
-  Map<String, String> get _headers => {
+  Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'Accept-Language': _language,
@@ -52,7 +47,11 @@ class ApiService {
     _accessToken = token;
   }
 
-  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
+  void setRefreshToken(String? token) {
+    _refreshToken = token;
+  }
+
+  Map<String, dynamic> handleResponse(http.Response response) {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -63,178 +62,80 @@ class ApiService {
     }
   }
 
-  // ==================== Generic ====================
+  // ==================== Token Refresh ====================
 
-  Future<Map<String, dynamic>> getRequest(String endpoint) async {
-    final response = await _client.get(
-      ApiEndpoints.uri(endpoint),
-      headers: _headers,
-    );
-    return await _handleResponse(response);
-  }
+  Future<bool> _tryRefreshToken() async {
+    if (_refreshToken == null || _isRefreshing) return false;
 
-  // ==================== Picker Auth ====================
+    _isRefreshing = true;
+    try {
+      final response = await _client.post(
+        ApiEndpoints.uri(ApiEndpoints.refreshToken),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Accept-Language': _language,
+        },
+        body: jsonEncode({'refresh_token': _refreshToken}),
+      );
 
-  Future<LoginResponse> pickerLogin(String phone, String password) async {
-    final response = await _client.post(
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccessToken = body['access_token']?.toString();
+        final newRefreshToken = body['refresh_token']?.toString() ?? _refreshToken!;
 
-      
-      ApiEndpoints.uri(ApiEndpoints.pickerLogin),
-      headers: _headers,
-      body: jsonEncode({
-        'phone': phone,
-        'password': password,
-      }),
-    );
+        if (newAccessToken != null && newAccessToken.isNotEmpty) {
+          _accessToken = newAccessToken;
+          _refreshToken = newRefreshToken;
+          onTokenRefreshed?.call(newAccessToken, newRefreshToken);
+          return true;
+        }
+      }
 
-    final data = await _handleResponse(response);
-
-    // Check state
-    if (data['state'] != 'SUCCESS') {
-      throw ApiException(data['message'] ?? 'فشل تسجيل الدخول');
+      onAuthFailed?.call();
+      return false;
+    } catch (_) {
+      onAuthFailed?.call();
+      return false;
+    } finally {
+      _isRefreshing = false;
     }
-
-    final picker = data['picker'] as Map<String, dynamic>;
-
-    final user = UserModel(
-      id: picker['id']?.toString() ?? '',
-      name: picker['name'] ?? '',
-      teamName: picker['employee_id'] ?? '',
-      password: '',
-      role: _parseRole(picker['role']),
-      zone: picker['zone_name']?.toString().isNotEmpty == true
-          ? picker['zone_name']
-          : picker['zone_id'],
-      isActive: picker['status'] == 'active',
-      createdAt: picker['created_at'] != null
-          ? DateTime.parse(picker['created_at'])
-          : DateTime.now(),
-    );
-
-    // Store access token for future requests
-    _accessToken = data['access_token'];
-
-    return LoginResponse(
-      accessToken: data['access_token'] ?? '',
-      refreshToken: data['refresh_token'] ?? '',
-      expiresIn: int.tryParse(data['expires_in']?.toString() ?? '0') ?? 0,
-      user: user,
-    );
   }
 
-  // ==================== Picking Tasks ====================
+  // ==================== HTTP Methods ====================
 
-  Future<List<dynamic>> getPickingTasks() async {
-    final response = await _client.get(
-      ApiEndpoints.uri(ApiEndpoints.pickingTasks),
-      headers: _headers,
-    );
-
-    final data = await _handleResponse(response);
-
-    // Return tasks list - adjust based on actual response structure
-    if (data['tasks'] != null) {
-      return data['tasks'] as List<dynamic>;
-    } else if (data['data'] != null) {
-      return data['data'] as List<dynamic>;
+  /// Authenticated GET — auto-retries once on 401 after refreshing token.
+  Future<http.Response> get(String endpoint) async {
+    final url = ApiEndpoints.uri(endpoint);
+    var response = await _client.get(url, headers: headers);
+    if (response.statusCode == 401 && _refreshToken != null) {
+      final refreshed = await _tryRefreshToken();
+      if (refreshed) {
+        response = await _client.get(url, headers: headers);
+      }
     }
-    return [];
+    return response;
   }
 
-  Future<void> startPickingTask(String taskId) async {
-    final response = await _client.post(
-      ApiEndpoints.uri(ApiEndpoints.startPickingTask(taskId)),
-      headers: _headers,
-      body: jsonEncode({}),
-    );
-
-    await _handleResponse(response);
-  }
-
-  Future<Map<String, dynamic>> getTaskDetails(String taskId) async {
-    final response = await _client.get(
-      ApiEndpoints.uri(ApiEndpoints.taskDetails(taskId)),
-      headers: _headers,
-    );
-
-    return await _handleResponse(response);
-  }
-
-  // ==================== Picking Submission ====================
-
-  Future<Map<String, dynamic>> scanTaskItem(String taskId, String barcode, int quantity) async {
-    final response = await _client.post(
-      ApiEndpoints.uri(ApiEndpoints.scanTask(taskId)),
-      headers: _headers,
-      body: jsonEncode({
-        'barcode': barcode,
-        'quantity': quantity,
-      }),
-    );
-
-    return await _handleResponse(response);
-  }
-
-  Future<Map<String, dynamic>> completeTask(String taskId, int packageCount) async {
-    final response = await _client.post(
-      ApiEndpoints.uri(ApiEndpoints.completeTask(taskId)),
-      headers: _headers,
-      body: jsonEncode({'package_count': packageCount}),
-    );
-
-    return await _handleResponse(response);
-  }
-
-  // ==================== Item Exception ====================
-
-  Future<Map<String, dynamic>> reportItemException(
-    String taskId,
-    String itemId, {
-    required String exceptionType,
-    required int quantity,
-    String? note,
-  }) async {
-    final response = await _client.post(
-      ApiEndpoints.uri(ApiEndpoints.itemException(taskId, itemId)),
-      headers: _headers,
-      body: jsonEncode({
-        'exceptionType': exceptionType,
-        'quantity': quantity,
-        if (note != null && note.isNotEmpty) 'note': note,
-      }),
-    );
-
-    return await _handleResponse(response);
-  }
-
-  // ==================== Picker Profile ====================
-
-  Future<PickerModel> getMe() async {
-    final response = await _client.get(
-      ApiEndpoints.uri(ApiEndpoints.pickerMe),
-      headers: _headers,
-    );
-
-    final data = await _handleResponse(response);
-
-    // Response is the picker object directly
-    return PickerModel.fromJson(data);
-  }
-
-  UserRole _parseRole(dynamic role) {
-    if (role == null) return UserRole.picker;
-
-    final roleStr = role.toString().toLowerCase();
-
-    if (roleStr.contains('master_picker') || roleStr.contains('master')) {
-      return UserRole.masterPicker;
-    } else if (roleStr.contains('supervisor') || roleStr.contains('super')) {
-      return UserRole.supervisor;
-    } else if (roleStr.contains('qc') || roleStr.contains('quality')) {
-      return UserRole.qc;
-    } else {
-      return UserRole.picker;
+  /// Authenticated POST — auto-retries once on 401 after refreshing token.
+  Future<http.Response> post(String endpoint, {Map<String, dynamic>? body}) async {
+    final url = ApiEndpoints.uri(endpoint);
+    final encodedBody = body != null ? jsonEncode(body) : null;
+    var response = await _client.post(url, headers: headers, body: encodedBody);
+    if (response.statusCode == 401 && _refreshToken != null) {
+      final refreshed = await _tryRefreshToken();
+      if (refreshed) {
+        response = await _client.post(url, headers: headers, body: encodedBody);
+      }
     }
+    return response;
+  }
+
+  /// Unauthenticated POST — for login and similar endpoints.
+  Future<http.Response> postNoAuth(String endpoint, {Map<String, dynamic>? body}) async {
+    final url = ApiEndpoints.uri(endpoint);
+    final encodedBody = body != null ? jsonEncode(body) : null;
+    return await _client.post(url, headers: headers, body: encodedBody);
   }
 
   void dispose() {
