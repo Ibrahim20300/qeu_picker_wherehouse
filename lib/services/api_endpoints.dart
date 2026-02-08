@@ -27,6 +27,13 @@ class ApiEndpoints {
   // ==================== Master Picker ====================
   static const String masterPickingTasks = '/picking/tasks';
 
+  // ==================== QC ====================
+  static const String qcQueue = '/qc/queue';
+  static const String qcChecks = '/qc/checks';
+  static String qcCheckDetails(String checkId) => '/qc/checks/$checkId';
+  static String qcStart(String checkId) => '/qc/checks/$checkId/start';
+  static String qcVerify(String checkId) => '/qc/checks/$checkId/verify';
+
   // ==================== Picker ====================
   static const String pickerProfile = '/picker/profile';
   static const String pickerStats = '/picker/stats';

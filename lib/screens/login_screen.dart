@@ -4,6 +4,7 @@ import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import 'pciker/picker_home_screen.dart';
 import 'master_picker/master_picker_home_screen.dart';
+import 'qc/qc_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,9 +38,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success && mounted) {
       final role = authProvider.currentUser?.role;
-      final Widget homeScreen = role == UserRole.masterPicker
-          ? const MasterPickerHomeScreen()
-          : const PickerScreen();
+      final Widget homeScreen;
+      switch (role) {
+        case UserRole.masterPicker:
+          homeScreen = const MasterPickerHomeScreen();
+          break;
+        case UserRole.qc:
+          homeScreen = const QCHomeScreen();
+          break;
+        default:
+          homeScreen = const PickerScreen();
+      }
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => homeScreen),

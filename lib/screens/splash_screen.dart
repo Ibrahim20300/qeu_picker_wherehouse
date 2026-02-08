@@ -6,6 +6,7 @@ import '../constants/app_colors.dart';
 import 'login_screen.dart';
 import 'pciker/picker_home_screen.dart';
 import 'master_picker/master_picker_home_screen.dart';
+import 'qc/qc_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,9 +31,16 @@ class _SplashScreenState extends State<SplashScreen> {
     Widget homeScreen;
     if (isLoggedIn) {
       final role = authProvider.currentUser?.role;
-      homeScreen = role == UserRole.masterPicker
-          ? const MasterPickerHomeScreen()
-          : const PickerScreen();
+      switch (role) {
+        case UserRole.masterPicker:
+          homeScreen = const MasterPickerHomeScreen();
+          break;
+        case UserRole.qc:
+          homeScreen = const QCHomeScreen();
+          break;
+        default:
+          homeScreen = const PickerScreen();
+      }
     } else {
       homeScreen = const LoginScreen();
     }

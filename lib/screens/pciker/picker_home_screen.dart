@@ -136,7 +136,7 @@ class _AccountTabState extends State<_AccountTab> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
             child: const Text('تسجيل الخروج'),
           ),
         ],
@@ -181,6 +181,8 @@ class _AccountTabState extends State<_AccountTab> {
               icon: const Icon(Icons.refresh),
               label: const Text('إعادة المحاولة'),
             ),
+            const SizedBox(height: 32),
+            _buildLogoutButton(),
           ],
         ),
       ),

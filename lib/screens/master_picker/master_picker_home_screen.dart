@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
@@ -18,10 +17,11 @@ class MasterPickerHomeScreen extends StatefulWidget {
 class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   final _barcodeController = TextEditingController();
   final _barcodeFocusNode = FocusNode();
-  Timer? _scanDebounce;
+  String _searchQuery = '';
 
   @override
   void initState() {
+    
     super.initState();
     _loadTasks();
     _barcodeFocusNode.addListener(_keepFocus);
@@ -40,18 +40,19 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   @override
   void dispose() {
     _barcodeFocusNode.removeListener(_keepFocus);
-    _scanDebounce?.cancel();
     _barcodeController.dispose();
     _barcodeFocusNode.dispose();
     super.dispose();
   }
 
   void _onBarcodeChanged(String value) {
-    _scanDebounce?.cancel();
-    if (value.trim().isEmpty) return;
-    _scanDebounce = Timer(const Duration(milliseconds: 300), () {
-      _onBarcodeScanned(value);
+    final converted = _convertArabicNumbers(value.trim());
+    setState(() {
+      _searchQuery = converted;
     });
+    if (converted.length >= 19) {
+      _onBarcodeScanned(value);
+    }
   }
 
   void _loadTasks() {
@@ -89,6 +90,7 @@ print(scanned);
     }).firstOrNull;
 
     _barcodeController.clear();
+    setState(() => _searchQuery = '');
     _barcodeFocusNode.requestFocus();
 
     if (task != null) {
@@ -148,6 +150,7 @@ print(scanned);
                   icon: const Icon(Icons.clear, size: 20),
                   onPressed: () {
                     _barcodeController.clear();
+                    setState(() => _searchQuery = '');
                     _barcodeFocusNode.requestFocus();
                   },
                 ),
@@ -210,14 +213,29 @@ print(scanned);
                   );
                 }
 
+                final filteredTasks = _searchQuery.isEmpty
+                    ? provider.tasks.cast<Map<String, dynamic>>()
+                    : provider.tasks.cast<Map<String, dynamic>>().where((t) {
+                        final orderNumber = t['order_number']?.toString().replaceAll('#', '') ?? '';
+                        return orderNumber.contains(_searchQuery);
+                      }).toList();
+
+                if (filteredTasks.isEmpty && _searchQuery.isNotEmpty) {
+                  return Center(
+                    child: Text(
+                      'لا توجد نتائج لـ "$_searchQuery"',
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+
                 return RefreshIndicator(
                   onRefresh: () => provider.fetchTasks(),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: provider.tasks.length,
+                    itemCount: filteredTasks.length,
                     itemBuilder: (context, index) {
-                      final task = provider.tasks[index] as Map<String, dynamic>;
-                      return _buildTaskCard(task);
+                      return _buildTaskCard(filteredTasks[index]);
                     },
                   ),
                 );
