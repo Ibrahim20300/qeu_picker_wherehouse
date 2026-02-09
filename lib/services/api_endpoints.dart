@@ -39,6 +39,7 @@ class ApiEndpoints {
   // ==================== Picker ====================
   static const String pickerProfile = '/picker/profile';
   static const String pickerStats = '/picker/stats';
+  static const String changePassword = '/picker/change-password';
 
   // Helper methods
   static String orderById(String id) => '$orders/$id';

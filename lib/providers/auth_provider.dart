@@ -148,6 +148,20 @@ class AuthProvider extends ChangeNotifier {
     return PickerModel.fromJson(data);
   }
 
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    final response = await _apiService.post(
+      ApiEndpoints.changePassword,
+      body: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      },
+    );
+    final data = _apiService.handleResponse(response);
+    if (data['success'] == false) {
+      throw ApiException(data['message'] ?? 'فشل تغيير كلمة المرور');
+    }
+  }
+
   Future<void> logout() async {
     _storageService ??= await StorageService.getInstance();
     await _storageService?.clearAuthData();
