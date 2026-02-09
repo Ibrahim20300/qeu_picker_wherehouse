@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -84,11 +85,18 @@ class _AccountTabState extends State<_AccountTab> {
   PickerModel? _picker;
   bool _isLoading = true;
   String? _error;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() => _appVersion = info.version);
   }
 
   Future<void> _loadProfile() async {
@@ -206,6 +214,15 @@ class _AccountTabState extends State<_AccountTab> {
             _buildInfoCard(picker),
             const SizedBox(height: 24),
             _buildLogoutButton(),
+            const SizedBox(height: 16),
+            if (_appVersion.isNotEmpty)
+              Text(
+                'v$_appVersion',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[400],
+                ),
+              ),
           ],
         ),
       ),

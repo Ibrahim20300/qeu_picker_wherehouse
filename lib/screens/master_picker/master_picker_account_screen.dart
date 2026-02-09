@@ -7,14 +7,14 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../login_screen.dart';
 
-class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+class MasterPickerAccountScreen extends StatefulWidget {
+  const MasterPickerAccountScreen({super.key});
 
   @override
-  State<AccountScreen> createState() => _AccountScreenState();
+  State<MasterPickerAccountScreen> createState() => _MasterPickerAccountScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen> {
+class _MasterPickerAccountScreenState extends State<MasterPickerAccountScreen> {
   PickerModel? _picker;
   bool _isLoading = true;
   String? _error;
@@ -187,7 +187,7 @@ class _AccountScreenState extends State<AccountScreen> {
             radius: 40,
             backgroundColor: Colors.white.withValues(alpha: 0.2),
             child: Text(
-              picker.name.isNotEmpty ? picker.name[0].toUpperCase() : 'P',
+              picker.name.isNotEmpty ? picker.name[0].toUpperCase() : 'M',
               style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

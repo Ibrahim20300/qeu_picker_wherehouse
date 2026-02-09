@@ -46,7 +46,7 @@ class _MyAppState extends State<MyApp> {
       child: _AuthListener(
         child: MaterialApp(
           navigatorKey: navigatorKey,
-          title: 'QEU Picker',
+          title: 'Q_Warehouse',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(

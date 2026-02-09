@@ -6,7 +6,7 @@ import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/qc_provider.dart';
 import '../../models/qc_check_model.dart';
-import '../login_screen.dart';
+import 'qc_account_screen.dart';
 import 'qc_check_details_screen.dart';
 
 class QCHomeScreen extends StatefulWidget {
@@ -19,6 +19,10 @@ class QCHomeScreen extends StatefulWidget {
 class _QCHomeScreenState extends State<QCHomeScreen> {
   final _scanController = TextEditingController();
   final _scanFocusNode = FocusNode();
+  final _orderSearchController = TextEditingController();
+  final _positionSearchController = TextEditingController();
+  String _orderQuery = '';
+  String _positionQuery = '';
   Timer? _focusTimer;
 
   @override
@@ -132,34 +136,35 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
     }
   }
 
-  void _logout() {
-    context.read<AuthProvider>().logout();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
   @override
   void dispose() {
     _focusTimer?.cancel();
     _scanController.removeListener(_onScanInput);
     _scanController.dispose();
     _scanFocusNode.dispose();
+    _orderSearchController.dispose();
+    _positionSearchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('مراقبة الجودة'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QCAccountScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -169,6 +174,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
           // _buildHiddenScanField(),
         ],
       ),
+    ),
     );
   }
 
@@ -269,14 +275,97 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
       );
     }
 
+    final orderQ = _orderQuery.trim().toLowerCase();
+    final positionQ = _positionQuery.trim();
+    var filteredChecks = qcProvider.checks.toList();
+    if (orderQ.isNotEmpty) {
+      filteredChecks = filteredChecks
+          .where((c) => c.orderNumber.toLowerCase().contains(orderQ))
+          .toList();
+    }
+    if (positionQ.isNotEmpty) {
+      filteredChecks = filteredChecks
+          .where((c) => c.queuePosition.toString() == positionQ)
+          .toList();
+    }
+
     return RefreshIndicator(
       onRefresh: () => qcProvider.loadChecks(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: qcProvider.checks.length,
-        itemBuilder: (context, index) {
-          return _buildCheckCard(qcProvider.checks[index]);
-        },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _orderSearchController,
+                    textDirection: TextDirection.ltr,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'رقم الطلب',
+                      hintTextDirection: TextDirection.rtl,
+                      prefixIcon: const Icon(Icons.receipt_long, size: 20),
+                      suffixIcon: _orderQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _orderSearchController.clear();
+                                setState(() => _orderQuery = '');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    onChanged: (value) {
+                      setState(() => _orderQuery = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: TextField(
+                    controller: _positionSearchController,
+                    textDirection: TextDirection.ltr,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'الموقع',
+            
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    onChanged: (value) {
+                      setState(() => _positionQuery = value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: filteredChecks.isEmpty
+                ? Center(
+                    child: Text(
+                      'لا توجد نتائج',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    itemCount: filteredChecks.length,
+                    itemBuilder: (context, index) {
+                      return _buildCheckCard(filteredChecks[index]);
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

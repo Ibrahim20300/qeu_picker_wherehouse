@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -18,6 +19,18 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() => _appVersion = info.version);
+  }
 
   @override
   void dispose() {
@@ -31,8 +44,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = context.read<AuthProvider>();
 
+    String phone = _phoneController.text.trim();
+    if (phone.startsWith('0') && phone.length == 10) {
+      phone = '966${phone.substring(1)}';
+    }
+
     final success = await authProvider.login(
-      _phoneController.text.trim(),
+      phone,
       _passwordController.text,
     );
 
@@ -132,6 +150,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'الرجاء إدخال رقم الجوال';
                       }
+                      final digits = value.trim();
+                      if (digits.startsWith('0') && digits.length != 10) {
+                        return 'رقم الجوال يجب أن يكون 10 خانات';
+                      }
                       return null;
                     },
                   ),
@@ -187,7 +209,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
-                  _buildTestCredentialsCard(),
+                  // _buildTestCredentialsCard(),
+                  if (_appVersion.isNotEmpty)
+                    Text(
+                      'v$_appVersion',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[400],
+                      ),
+                    ),
                 ],
               ),
             ),

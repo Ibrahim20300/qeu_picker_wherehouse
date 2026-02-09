@@ -7,14 +7,14 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../login_screen.dart';
 
-class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+class QCAccountScreen extends StatefulWidget {
+  const QCAccountScreen({super.key});
 
   @override
-  State<AccountScreen> createState() => _AccountScreenState();
+  State<QCAccountScreen> createState() => _QCAccountScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen> {
+class _QCAccountScreenState extends State<QCAccountScreen> {
   PickerModel? _picker;
   bool _isLoading = true;
   String? _error;
@@ -187,7 +187,7 @@ class _AccountScreenState extends State<AccountScreen> {
             radius: 40,
             backgroundColor: Colors.white.withValues(alpha: 0.2),
             child: Text(
-              picker.name.isNotEmpty ? picker.name[0].toUpperCase() : 'P',
+              picker.name.isNotEmpty ? picker.name[0].toUpperCase() : 'Q',
               style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -280,7 +280,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 Expanded(
                   child: _buildStatItem(
                     icon: Icons.inventory_2,
-                    label: 'المنتجات المجمعة',
+                    label: 'المنتجات المفحوصة',
                     value: '${picker.itemsPickedToday}',
                     color: AppColors.primary,
                   ),

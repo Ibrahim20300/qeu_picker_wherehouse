@@ -4,7 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
 import '../../services/invoice_service.dart';
-import '../login_screen.dart';
+import 'master_picker_account_screen.dart';
 import 'task_detail_screen.dart';
 
 class MasterPickerHomeScreen extends StatefulWidget {
@@ -107,8 +107,6 @@ print(scanned);
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('لوحة الماستر بيكر'),
@@ -121,15 +119,12 @@ print(scanned);
             onPressed: _loadTasks,
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await authProvider.logout();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MasterPickerAccountScreen()),
+              );
             },
           ),
         ],
