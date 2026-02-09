@@ -30,8 +30,8 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
   final List<GlobalKey> _zoneKeys = [];
 
   final List<String> _rejectionReasons = [
-    'منتج مفقود',
-    'منتج تالف',
+    'كيس مفقود',
+    'كيس زائد',
   ];
 
   @override
@@ -789,7 +789,10 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: borderColor, width: (isComplete || isProblem) ? 1.5 : 1),
       ),
-      child: Padding(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showOrderVerificationDialog(index),
+        child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
@@ -1032,7 +1035,84 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
           ],
         ),
       ),
+      ),
     );
+  }
+
+  void _showOrderVerificationDialog(int index) {
+    _focusTimer?.cancel();
+    _focusTimer = null;
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تحقق من رقم الطلب', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'أدخل آخر 6 أرقام من رقم الطلب',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textDirection: TextDirection.ltr,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'آخر 6 أرقام',
+                hintTextDirection: TextDirection.rtl,
+                prefixIcon: const Icon(Icons.receipt_long),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onSubmitted: (value) {
+                _verifyAndProceed(ctx, controller.text.trim(), index);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _verifyAndProceed(ctx, controller.text.trim(), index);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      if (mounted) _setupScanning();
+    });
+  }
+
+  void _verifyAndProceed(BuildContext ctx, String enteredOrder, int index) {
+    if (enteredOrder.isEmpty) return;
+
+    final checkOrder = widget.check.orderNumber.replaceAll('#', '');
+    final lastSix = checkOrder.length >= 6 ? checkOrder.substring(checkOrder.length - 6) : checkOrder;
+    if (enteredOrder == lastSix) {
+      Navigator.pop(ctx);
+      _showZoneScanDialog(index);
+    } else {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('رقم الطلب غير متطابق'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Widget _buildZoneActionButton({

@@ -24,11 +24,15 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
   String _orderQuery = '';
   String _positionQuery = '';
   Timer? _focusTimer;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadChecks();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _loadChecks();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // _setupScanning();
     });
@@ -138,6 +142,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _focusTimer?.cancel();
     _scanController.removeListener(_onScanInput);
     _scanController.dispose();
