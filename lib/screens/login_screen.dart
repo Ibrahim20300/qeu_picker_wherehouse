@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../services/api_endpoints.dart';
 import 'pciker/picker_home_screen.dart';
 import 'master_picker/master_picker_home_screen.dart';
 import 'qc/qc_home_screen.dart';
@@ -22,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   String _appVersion = '';
+  int _versionTapCount = 0;
 
   @override
   void initState() {
@@ -239,11 +241,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 32),
                   // _buildTestCredentialsCard(),
                   if (_appVersion.isNotEmpty)
-                    Text(
-                      'v$_appVersion',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[400],
+                    GestureDetector(
+                      onTap: _onVersionTap,
+                      child: Text(
+                        'v$_appVersion',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[400],
+                        ),
                       ),
                     ),
                 ],
@@ -253,6 +258,56 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _onVersionTap() {
+    _versionTapCount++;
+    if (_versionTapCount >= 10) {
+      _versionTapCount = 0;
+      _showSecretCodeDialog();
+    }
+  }
+
+  void _showSecretCodeDialog() {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter Code', textAlign: TextAlign.center),
+        content: TextField(
+          controller: codeController,
+          keyboardType: TextInputType.number,
+          obscureText: true,
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(S.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (codeController.text.trim() == '112233') {
+                ApiEndpoints.isProduction = !ApiEndpoints.isProduction;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ApiEndpoints.isProduction ? 'Production' : 'Development'),
+                    backgroundColor: ApiEndpoints.isProduction ? Colors.green : Colors.orange,
+                  ),
+                );
+              } else {
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

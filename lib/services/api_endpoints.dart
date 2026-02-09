@@ -1,5 +1,10 @@
 class ApiEndpoints {
-  static const String baseUrl = 'https://api.qeu.app/v1';
+  static bool isProduction = true;
+
+  static const String _productionUrl = 'https://api.qeu.info/v1';
+  static const String _devUrl = 'https://api.qeu.app/v1';
+
+  static String get baseUrl => isProduction ? _productionUrl : _devUrl;
 
   // ==================== Auth ====================
   static const String pickerLogin = '/picker/login';
