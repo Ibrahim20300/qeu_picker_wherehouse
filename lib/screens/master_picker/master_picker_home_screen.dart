@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
@@ -5,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
 import '../../services/invoice_service.dart';
 import 'master_picker_account_screen.dart';
+import 'pending_exceptions_screen.dart';
 import 'task_detail_screen.dart';
 
 class MasterPickerHomeScreen extends StatefulWidget {
@@ -18,12 +20,17 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   final _barcodeController = TextEditingController();
   final _barcodeFocusNode = FocusNode();
   String _searchQuery = '';
+  Timer? _refreshTimer;
 
   @override
   void initState() {
-    
     super.initState();
     _loadTasks();
+    _loadExceptions();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _loadTasks(hideLoad: true);
+      _loadExceptions(hideLoad: true);
+    });
     _barcodeFocusNode.addListener(_keepFocus);
   }
 
@@ -39,6 +46,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _barcodeFocusNode.removeListener(_keepFocus);
     _barcodeController.dispose();
     _barcodeFocusNode.dispose();
@@ -55,11 +63,18 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
     }
   }
 
-  void _loadTasks() {
+  void _loadTasks({bool hideLoad=false}) {
     final authProvider = context.read<AuthProvider>();
     final provider = context.read<MasterPickerProvider>();
     provider.init(authProvider.apiService);
-    provider.fetchTasks();
+    provider.fetchTasks(hideLoad: hideLoad);
+  }
+
+  void _loadExceptions({bool hideLoad = false}) {
+    final authProvider = context.read<AuthProvider>();
+    final provider = context.read<MasterPickerProvider>();
+    provider.init(authProvider.apiService);
+    provider.fetchPendingExceptions(hideLoad: hideLoad);
   }
 
   String _convertArabicNumbers(String input) {
@@ -114,6 +129,26 @@ print(scanned);
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          Consumer<MasterPickerProvider>(
+            builder: (context, provider, _) {
+              final count = provider.exceptions.length;
+              return IconButton(
+                icon: count > 0
+                    ? Badge(
+                        label: Text('$count', style: const TextStyle(fontSize: 10)),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.warning_amber_rounded, color: Colors.yellow, size: 28),
+                      )
+                    : const Icon(Icons.warning_amber_rounded),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PendingExceptionsScreen()),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTasks,

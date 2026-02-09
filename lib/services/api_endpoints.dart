@@ -26,6 +26,8 @@ class ApiEndpoints {
 
   // ==================== Master Picker ====================
   static const String masterPickingTasks = '/picking/tasks';
+  static const String pendingExceptions = '/picker/exceptions/pending';
+  static String approveException(String exceptionId) => '/picker/exceptions/$exceptionId/approve';
 
   // ==================== QC ====================
   static const String qcQueue = '/qc/queue';
