@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/locale_provider.dart';
 import 'pciker/picker_home_screen.dart';
 import 'master_picker/master_picker_home_screen.dart';
 import 'qc/qc_home_screen.dart';
@@ -102,7 +104,33 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
+        child: Stack(
+          children: [
+            // Language toggle at top
+            Positioned(
+              top: 12,
+              right: 12,
+              left: 12,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Consumer<LocaleProvider>(
+                    builder: (context, localeProvider, _) {
+                      final isAr = localeProvider.locale.languageCode == 'ar';
+                      return TextButton.icon(
+                        onPressed: () => localeProvider.toggleLocale(),
+                        icon: const Icon(Icons.language, size: 20),
+                        label: Text(isAr ? 'English' : 'العربية'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey[700],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Form(
@@ -132,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'نظام إدارة المستودعات',
+                    S.warehouseManagement,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -142,17 +170,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _phoneController,
                     textDirection: TextDirection.ltr,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'رقم الجوال',
+                    decoration: InputDecoration(
+                      labelText: S.phoneNumber,
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'الرجاء إدخال رقم الجوال';
+                        return S.pleaseEnterPhone;
                       }
                       final digits = value.trim();
                       if (digits.startsWith('0') && digits.length != 10) {
-                        return 'رقم الجوال يجب أن يكون 10 خانات';
+                        return S.phoneMustBe10Digits;
                       }
                       return null;
                     },
@@ -163,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscurePassword,
                     textDirection: TextDirection.ltr,
                     decoration: InputDecoration(
-                      labelText: 'كلمة المرور',
+                      labelText: S.password,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -178,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'الرجاء إدخال كلمة المرور';
+                        return S.pleaseEnterPassword;
                       }
                       return null;
                     },
@@ -200,8 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text(
-                                  'تسجيل الدخول',
+                              : Text(
+                                  S.login,
                                   style: TextStyle(fontSize: 16),
                                 ),
                         ),
@@ -223,6 +251,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+          ],
+        ),
       ),
     );
   }
@@ -238,17 +268,17 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'بيانات تجريبية للدخول:',
+            S.testCredentials,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.grey[700],
             ),
           ),
           const SizedBox(height: 8),
-          _buildTestCredential('بيكر', '966501111003'),
+          _buildTestCredential(S.picker, '966501111003'),
           const SizedBox(height: 4),
           Text(
-            'كلمة المرور: picker123',
+            '${S.passwordLabel} picker123',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],

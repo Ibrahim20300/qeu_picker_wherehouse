@@ -1,4 +1,5 @@
 import 'order_model.dart';
+import '../l10n/app_localizations.dart';
 
 enum TaskStatus {
   pending,
@@ -42,15 +43,15 @@ enum TaskStatus {
   String get displayName {
     switch (this) {
       case TaskStatus.pending:
-        return 'قيد الانتظار';
+        return S.statusPending;
       case TaskStatus.assigned:
-        return 'تم التعيين';
+        return S.statusAssigned;
       case TaskStatus.inProgress:
-        return 'جاري التحضير';
+        return S.statusInProgress;
       case TaskStatus.completed:
-        return 'مكتمل';
+        return S.statusCompleted;
       case TaskStatus.cancelled:
-        return 'ملغي';
+        return S.statusCancelled;
     }
   }
 

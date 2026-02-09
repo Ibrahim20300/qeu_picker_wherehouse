@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../models/qc_check_model.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/qc_provider.dart';
 
@@ -29,10 +30,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
   final _scrollController = ScrollController();
   final List<GlobalKey> _zoneKeys = [];
 
-  final List<String> _rejectionReasons = [
-    'كيس مفقود',
-    'كيس زائد',
-  ];
+  List<String> get _rejectionReasons => [S.missingBag, S.extraBag];
 
   @override
   void initState() {
@@ -95,7 +93,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('رقم الطلب غير متطابق: $orderPart'),
+            content: Text(S.orderNumberMismatch(orderPart)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -127,7 +125,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('لم يتم العثور على منطقة: $zoneCode'),
+          content: Text(S.zoneNotFound(zoneCode)),
           backgroundColor: AppColors.error,
         ),
       );
@@ -160,7 +158,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${zone.packageCount} كيس',
+                '${zone.packageCount} ${S.bag}',
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
@@ -188,7 +186,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                   ),
                   const SizedBox(width: 10),
                   Center(
-                    child: Text('منطقة ${zone.zoneCode}', style: const TextStyle(fontSize: 16)),
+                    child: Text(S.zoneLabel(zone.zoneCode), style: const TextStyle(fontSize: 16)),
                   ),
                    
                 ],
@@ -211,7 +209,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                   });
                 },
                 icon: const Icon(Icons.check_circle),
-                label: const Text('مكتمل', style: TextStyle(fontSize: 16)),
+                label: Text(S.statusCompleted, style: const TextStyle(fontSize: 16)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
@@ -221,7 +219,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            const Text('أو اختر سبب المشكلة:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(S.orChooseProblemReason, style: const TextStyle(fontSize: 13, color: Colors.grey)),
             const SizedBox(height: 8),
             // Rejection reasons
             ..._rejectionReasons.map((reason) => Padding(
@@ -285,7 +283,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text(
-          'فحص #${check.orderNumber.length > 6 ? check.orderNumber.substring(check.orderNumber.length - 6) : check.orderNumber}',
+          S.checkNum(check.orderNumber.length > 6 ? check.orderNumber.substring(check.orderNumber.length - 6) : check.orderNumber),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -371,21 +369,21 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                       _buildHeaderStat(
                         Icons.shopping_bag_outlined,
                         '${check.expectedPackageCount}',
-                        'أكياس متوقعة',
+                        S.expectedBags,
                         AppColors.primary,
                       ),
                       const SizedBox(width: 12),
                       _buildHeaderStat(
                         Icons.map_outlined,
                         '${check.zoneTasks.length}',
-                        'مناطق',
+                        S.zones,
                         Colors.blue,
                       ),
                       const SizedBox(width: 12),
                       _buildHeaderStat(
                         Icons.inventory_2_outlined,
                         '${check.totalZonePicked}/${check.totalZoneItems}',
-                        'منتجات',
+                        S.productsLabel,
                         AppColors.success,
                       ),
                     ],
@@ -401,19 +399,19 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: Row(
                 children: [
-                  const Text(
-                    'المناطق',
-                    style: TextStyle(
+                  Text(
+                    S.zonesLabel,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const Spacer(),
                   if (completedCount > 0)
-                    _buildMiniChip('$completedCount مكتمل', AppColors.success),
+                    _buildMiniChip(S.completedCount(completedCount), AppColors.success),
                   if (problemCount > 0) ...[
                     const SizedBox(width: 6),
-                    _buildMiniChip('$problemCount مشكلة', AppColors.error),
+                    _buildMiniChip(S.problemCount(problemCount), AppColors.error),
                   ],
                 ],
               ),
@@ -540,8 +538,8 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
             const SizedBox(height: 10),
             Text(
               allDecided
-                  ? (allComplete ? 'تم فحص جميع المناطق بنجاح' : 'تم تحديد حالة جميع المناطق')
-                  : '${completedCount + problemCount} من ${check.zoneTasks.length} مناطق تم فحصها',
+                  ? (allComplete ? S.allZonesInspectedSuccess : S.allZoneStatusesDetermined)
+                  : S.zonesInspected(completedCount + problemCount, check.zoneTasks.length),
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -560,7 +558,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                     icon: qcProvider.verifyLoading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.warning_amber_rounded),
-                    label: const Text('يوجد مشكلة'),
+                    label: Text(S.hasProblem),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.error,
                       side: BorderSide(
@@ -583,7 +581,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                     icon: qcProvider.verifyLoading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.check_circle),
-                    label: const Text('الطلب مكتمل'),
+                    label: Text(S.orderComplete),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
@@ -615,8 +613,8 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم اعتماد الطلب بنجاح'),
+        SnackBar(
+          content: Text(S.orderApprovedSuccess),
           backgroundColor: AppColors.success,
         ),
       );
@@ -625,7 +623,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(qcProvider.verifyError ?? 'فشل اعتماد الفحص'),
+          content: Text(qcProvider.verifyError ?? S.failedToApproveInspection),
           backgroundColor: AppColors.error,
         ),
       );
@@ -653,20 +651,20 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.error),
-            SizedBox(width: 8),
-            Text('تأكيد رفض الطلب'),
+            const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text(S.confirmOrderRejection),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'المناطق المرفوضة:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            Text(
+              S.rejectedZones,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 8),
             ...reasonSummaries.map((r) => Padding(
@@ -686,12 +684,12 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('تأكيد الرفض'),
+            child: Text(S.confirmRejection),
           ),
         ],
       ),
@@ -713,8 +711,8 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم رفض الطلب'),
+        SnackBar(
+          content: Text(S.orderRejected),
           backgroundColor: AppColors.error,
         ),
       );
@@ -723,7 +721,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(qcProvider.verifyError ?? 'فشل رفض الفحص'),
+          content: Text(qcProvider.verifyError ?? S.failedToRejectInspection),
           backgroundColor: AppColors.error,
         ),
       );
@@ -834,7 +832,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'المحضر',
+                        S.preparer,
                         style: TextStyle(
                           color: Colors.grey[400],
                           fontSize: 11,
@@ -854,7 +852,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                           Icon(Icons.check_circle_outline, size: 14, color: Colors.grey[500]),
                           const SizedBox(width: 4),
                           Text(
-                            '${zone.pickedItems}/${zone.totalItems} منتج',
+                            '${zone.pickedItems}/${zone.totalItems} ${S.product}',
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -901,9 +899,9 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                           ),
                         ),
                       ),
-                      const Text(
-                        'كيس',
-                        style: TextStyle(
+                      Text(
+                        S.bag,
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontSize: 11,
                         ),
@@ -973,9 +971,9 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'سبب المشكلة:',
-                      style: TextStyle(
+                    Text(
+                      S.problemReason,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                         color: AppColors.error,
@@ -1046,13 +1044,13 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('تحقق من رقم الطلب', textAlign: TextAlign.center),
+        title: Text(S.verifyOrderNumber, textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'أدخل آخر 6 أرقام من رقم الطلب',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+            Text(
+              S.enterLast6Digits,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1061,7 +1059,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
               textDirection: TextDirection.ltr,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                hintText: 'آخر 6 أرقام',
+                hintText: S.last6Digits,
                 hintTextDirection: TextDirection.rtl,
                 prefixIcon: const Icon(Icons.receipt_long),
                 border: OutlineInputBorder(
@@ -1077,7 +1075,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1087,7 +1085,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
             ),
-            child: const Text('تأكيد'),
+            child: Text(S.confirm),
           ),
         ],
       ),
@@ -1107,8 +1105,8 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
     } else {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('رقم الطلب غير متطابق'),
+        SnackBar(
+          content: Text(S.orderNumberMismatchSimple),
           backgroundColor: AppColors.error,
         ),
       );

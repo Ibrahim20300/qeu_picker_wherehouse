@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../../constants/app_colors.dart';
 import '../../helpers/snackbar_helper.dart';
 import '../../widgets/numeric_keypad.dart';
@@ -44,7 +45,7 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
   void _onConfirm() {
     final count = int.tryParse(_value) ?? 0;
     if (count == 0) {
-      SnackbarHelper.error(context, 'يجب إدخال عدد الأكياس');
+      SnackbarHelper.error(context, S.mustEnterBagCount);
       return;
     }
     Navigator.pop(context, count);
@@ -55,7 +56,7 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text('الطلب ${widget.orderNumber}'),
+        title: Text(S.orderNum(widget.orderNumber)),
         centerTitle: true,
       ),
       body: Column(
@@ -91,9 +92,9 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
         //   ),
         // ),
         const SizedBox(height: 16),
-        const Text(
-          'أدخل عدد الأكياس المستخدمة',
-          style: TextStyle(
+        Text(
+          S.enterBagCount,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -131,9 +132,9 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          const Text(
-            'كيس',
-            style: TextStyle(
+          Text(
+            S.bag,
+            style: const TextStyle(
               fontSize: 20,
               color: Colors.grey,
             ),
@@ -160,9 +161,9 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
         child: ElevatedButton.icon(
           onPressed: _onConfirm,
           icon: const Icon(Icons.check_circle, size: 28),
-          label: const Text(
-            'إكمال الطلب',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          label: Text(
+            S.completeOrder,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,

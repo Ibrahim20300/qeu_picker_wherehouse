@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/picking_provider.dart';
@@ -35,12 +36,12 @@ class _PickerScreenState extends State<PickerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تحضير الطلبات'),
+        title: Text(S.orderPreparation),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.shopping_cart), text: 'الطلبات'),
-            Tab(icon: Icon(Icons.person), text: 'حسابي'),
+          tabs: [
+            Tab(icon: const Icon(Icons.shopping_cart), text: S.orders),
+            Tab(icon: const Icon(Icons.person), text: S.myAccount),
           ],
         ),
       ),
@@ -124,8 +125,8 @@ class _OrdersTabState extends State<_OrdersTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('فشل بدء التحضير. حاول مرة أخرى'),
+          SnackBar(
+            content: Text(S.failedToStartPreparation),
             backgroundColor: AppColors.error,
           ),
         );
@@ -157,7 +158,7 @@ class _OrdersTabState extends State<_OrdersTab> {
       });
     } catch (e) {
       setState(() {
-        _error = 'فشل جلب الطلبات. تحقق من اتصال الإنترنت';
+        _error = S.failedToFetchOrders;
         _isLoading = false;
       });
     }
@@ -208,7 +209,7 @@ class _OrdersTabState extends State<_OrdersTab> {
             ElevatedButton.icon(
               onPressed: _loadTasks,
               icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
+              label: Text(S.retry),
             ),
           ],
         ),
@@ -230,7 +231,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                 Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'لا توجد طلبات',
+                  S.noOrders,
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
               ],
@@ -290,7 +291,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                           children: [
                             Expanded(
                               child: Text(
-                                'طلب #${orderNumber.length > 8 ? orderNumber.substring(0, 8) : orderNumber}',
+                                S.orderNum(orderNumber.length > 8 ? orderNumber.substring(0, 8) : orderNumber),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -304,8 +305,8 @@ class _OrdersTabState extends State<_OrdersTab> {
                                   color: AppColors.error.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text(
-                                  'عاجل',
+                                child: Text(
+                                  S.urgent,
                                   style: TextStyle(
                                     color: AppColors.error,
                                     fontSize: 10,
@@ -336,7 +337,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                   Icon(Icons.inventory_2_outlined, size: 16, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
-                    '$pickedItems / $totalItems منتج',
+                    '$pickedItems / $totalItems ${S.product}',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 13,
@@ -364,7 +365,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                     child: ElevatedButton.icon(
                       onPressed: () => _startPicking(task),
                       icon: const Icon(Icons.play_arrow),
-                      label: const Text('بدء التحضير'),
+                      label: Text(S.startPreparation),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -387,23 +388,23 @@ class _OrdersTabState extends State<_OrdersTab> {
     switch (status.toUpperCase()) {
       case 'TASK_PENDING':
         color = AppColors.pending;
-        text = 'قيد الانتظار';
+        text = S.statusPending;
         break;
       case 'TASK_ASSIGNED':
         color = Colors.blue;
-        text = 'تم التعيين';
+        text = S.statusAssigned;
         break;
       case 'TASK_IN_PROGRESS':
         color = AppColors.primary;
-        text = 'جاري التحضير';
+        text = S.statusInProgress;
         break;
       case 'TASK_COMPLETED':
         color = AppColors.success;
-        text = 'مكتمل';
+        text = S.statusCompleted;
         break;
       case 'TASK_CANCELLED':
         color = AppColors.error;
-        text = 'ملغي';
+        text = S.statusCancelled;
         break;
       default:
         color = Colors.grey;

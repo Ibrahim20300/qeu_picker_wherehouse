@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../constants/app_colors.dart';
 import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
@@ -71,7 +72,7 @@ class _PickingScreenState extends State<PickingScreen> {
     switch (result) {
       case ScanResult.locationVerified:
         HapticFeedback.mediumImpact();
-        SnackbarHelper.success(context, 'تم التحقق من الموقع ✓', floating: true);
+        SnackbarHelper.success(context, S.locationVerified, floating: true);
         break;
       case ScanResult.barcodeAccepted:
         HapticFeedback.mediumImpact();
@@ -80,7 +81,7 @@ class _PickingScreenState extends State<PickingScreen> {
           final remaining = item.requiredQuantity - item.pickedQuantity;
           SnackbarHelper.success(
             context,
-            'تم التقاط 1 - المتبقي: $remaining',
+            S.picked1Remaining(remaining),
             floating: true,
           );
         }
@@ -101,19 +102,19 @@ class _PickingScreenState extends State<PickingScreen> {
         HapticFeedback.heavyImpact();
         SnackbarHelper.error(
           context,
-          'موقع خاطئ! المطلوب: ${provider.currentLocation}',
+          S.wrongLocation(provider.currentLocation),
           floating: true,
         );
         break;
       case ScanResult.wrongBarcode:
         HapticFeedback.heavyImpact();
-        SnackbarHelper.error(context, 'باركود خاطئ!', floating: true);
+        SnackbarHelper.error(context, S.wrongBarcode, floating: true);
         break;
       case ScanResult.scanLocationFirst:
         HapticFeedback.heavyImpact();
         SnackbarHelper.error(
           context,
-          'امسح الموقع أولاً! (${provider.currentLocation})',
+          S.scanLocationFirst(provider.currentLocation),
           floating: true,
         );
         break;
@@ -141,16 +142,16 @@ class _PickingScreenState extends State<PickingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.celebration, color: AppColors.success, size: 32),
-            SizedBox(width: 8),
-            Text('تم إكمال الطلب!'),
+            const Icon(Icons.celebration, color: AppColors.success, size: 32),
+            const SizedBox(width: 8),
+            Text(S.orderCompleted),
           ],
         ),
-        content: const Text(
-          'تم تحضير جميع المنتجات بنجاح',
+        content: Text(
+          S.allProductsPrepared,
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -164,7 +165,7 @@ class _PickingScreenState extends State<PickingScreen> {
               backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
             ),
-            child: const Text('مراجعة'),
+            child: Text(S.review),
           ),
         ],
       ),
@@ -197,14 +198,14 @@ class _PickingScreenState extends State<PickingScreen> {
             provider.markAsMissing();
 
             if (mounted) {
-              SnackbarHelper.success(context, 'تم الإبلاغ عن المشكلة بنجاح', floating: true);
+              SnackbarHelper.success(context, S.issueReportedSuccess, floating: true);
               if (provider.remainingItems.isEmpty) {
                 _showOrderCompleteDialog();
               }
             }
           } catch (e) {
             if (mounted) {
-              SnackbarHelper.error(context, 'فشل الإبلاغ. حاول مرة أخرى', floating: true);
+              SnackbarHelper.error(context, S.failedToReport, floating: true);
             }
           }
         },
@@ -264,7 +265,7 @@ class _PickingScreenState extends State<PickingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('امسح الموقع أولا', style: TextStyle(fontSize: 16)),
+                            Text(S.scanLocationFirstHint, style: const TextStyle(fontSize: 16)),
                             SizedBox(height: 8),
                             _buildLocationSection(item, provider),
                             const SizedBox(height: 16),
@@ -290,7 +291,7 @@ class _PickingScreenState extends State<PickingScreen> {
   Widget _buildEmptyState() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('التحضير'),
+        title: Text(S.preparation),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -300,14 +301,14 @@ class _PickingScreenState extends State<PickingScreen> {
           children: [
             const Icon(Icons.check_circle, size: 80, color: AppColors.success),
             const SizedBox(height: 16),
-            const Text(
-              'لا توجد منتجات متبقية',
-              style: TextStyle(fontSize: 18),
+            Text(
+              S.noRemainingProducts,
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('العودة'),
+              child: Text(S.goBack),
             ),
           ],
         ),
@@ -340,7 +341,7 @@ class _PickingScreenState extends State<PickingScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'الطلب #${widget.order.orderNumber.substring(0, 8)}',
+                      S.orderNum(widget.order.orderNumber.substring(0, 8)),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -348,7 +349,7 @@ class _PickingScreenState extends State<PickingScreen> {
                       ),
                     ),
                     Text(
-                      '$done / $total منتج',
+                      '$done / $total ${S.product}',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 14,
@@ -377,23 +378,23 @@ class _PickingScreenState extends State<PickingScreen> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'manual',
                     child: Row(
                       children: [
-                        Icon(Icons.keyboard, color: AppColors.primary),
-                        SizedBox(width: 8),
-                        Text('إدخال باركود يدوي'),
+                        const Icon(Icons.keyboard, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(S.manualBarcodeEntry),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'missing',
                     child: Row(
                       children: [
-                        Icon(Icons.cancel, color: AppColors.error),
-                        SizedBox(width: 8),
-                        Text('ابلاغ عن مشكلة'),
+                        const Icon(Icons.cancel, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        Text(S.reportIssue),
                       ],
                     ),
                   ),
@@ -568,7 +569,7 @@ class _PickingScreenState extends State<PickingScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildQuantityBox(
-              'الملتقط',
+              S.picked,
               '${item.pickedQuantity}',
               AppColors.success,
               Icons.check_circle_outline,
@@ -580,7 +581,7 @@ class _PickingScreenState extends State<PickingScreen> {
               color: Colors.grey[300],
             ),
             _buildQuantityBox(
-              'المتبقي',
+              S.remaining,
               '$remaining',
               remaining > 0 ? AppColors.pending : AppColors.success,
               Icons.pending_outlined,
@@ -592,7 +593,7 @@ class _PickingScreenState extends State<PickingScreen> {
               color: Colors.grey[300],
             ),
             _buildQuantityBox(
-              'المطلوب',
+              S.required_,
               '${item.requiredQuantity}',
               AppColors.primary,
               Icons.inventory_2_outlined,
@@ -759,9 +760,9 @@ class _ItemCompleteDialogState extends State<_ItemCompleteDialog>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'تم الإكمال!',
-                style: TextStyle(
+              Text(
+                S.completed,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.success,
@@ -804,12 +805,12 @@ class _ExceptionReportDialogState extends State<_ExceptionReportDialog> {
   final _noteController = TextEditingController();
   bool _isSubmitting = false;
 
-  static const _exceptionTypes = {
-    'EXCEPTION_OUT_OF_STOCK': {'label': 'غير متوفر', 'icon': Icons.remove_shopping_cart, 'color': Colors.orange},
-    'EXCEPTION_DAMAGED': {'label': 'تالف', 'icon': Icons.broken_image, 'color': Colors.red},
-    'EXCEPTION_EXPIRED': {'label': 'منتهي الصلاحية', 'icon': Icons.timer_off, 'color': Colors.purple},
-    'EXCEPTION_WRONG_ITEM': {'label': 'منتج خاطئ', 'icon': Icons.swap_horiz, 'color': Colors.blue},
-    'EXCEPTION_OTHER': {'label': 'أخرى', 'icon': Icons.more_horiz, 'color': Colors.grey},
+  static Map<String, Map<String, dynamic>> get _exceptionTypes => {
+    'EXCEPTION_OUT_OF_STOCK': {'label': S.outOfStock, 'icon': Icons.remove_shopping_cart, 'color': Colors.orange},
+    'EXCEPTION_DAMAGED': {'label': S.damaged, 'icon': Icons.broken_image, 'color': Colors.red},
+    'EXCEPTION_EXPIRED': {'label': S.expired, 'icon': Icons.timer_off, 'color': Colors.purple},
+    'EXCEPTION_WRONG_ITEM': {'label': S.wrongProduct, 'icon': Icons.swap_horiz, 'color': Colors.blue},
+    'EXCEPTION_OTHER': {'label': S.other, 'icon': Icons.more_horiz, 'color': Colors.grey},
   };
 
   @override
@@ -855,10 +856,10 @@ class _ExceptionReportDialogState extends State<_ExceptionReportDialog> {
               children: [
                 const Icon(Icons.report_problem, color: AppColors.error, size: 28),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'ابلاغ عن مشكلة',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    S.reportIssue,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
@@ -873,7 +874,7 @@ class _ExceptionReportDialogState extends State<_ExceptionReportDialog> {
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
-            const Text('نوع المشكلة', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(S.issueType, style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -949,7 +950,7 @@ class _ExceptionReportDialogState extends State<_ExceptionReportDialog> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('إرسال البلاغ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(S.submitReport, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

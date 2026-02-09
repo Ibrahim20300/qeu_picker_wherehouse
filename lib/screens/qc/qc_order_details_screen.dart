@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/order_model.dart';
 import '../../services/invoice_service.dart';
 
@@ -36,29 +37,29 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: AppColors.success),
-            SizedBox(width: 8),
-            Text('تأكيد الموافقة'),
+            const Icon(Icons.check_circle, color: AppColors.success),
+            const SizedBox(width: 8),
+            Text(S.confirmApproval),
           ],
         ),
-        content: const Text('هل تريد الموافقة على هذا الطلب؟'),
+        content: Text(S.approveOrderQuestion),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _showSuccessAndPrint('تمت الموافقة على الطلب بنجاح');
+              _showSuccessAndPrint(S.orderApproved);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
             ),
-            child: const Text('موافقة'),
+            child: Text(S.approve),
           ),
         ],
       ),
@@ -71,24 +72,24 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.cancel, color: AppColors.error),
-            SizedBox(width: 8),
-            Text('رفض الطلب'),
+            const Icon(Icons.cancel, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text(S.rejectOrder),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('يرجى إدخال سبب الرفض:'),
+            Text(S.enterRejectionReason),
             const SizedBox(height: 12),
             TextField(
               controller: notesController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'سبب الرفض...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: S.rejectionReasonHint,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -96,14 +97,14 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم رفض الطلب'),
+                SnackBar(
+                  content: Text(S.orderRejected),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -113,7 +114,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('رفض'),
+            child: Text(S.reject),
           ),
         ],
       ),
@@ -134,8 +135,8 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ أثناء الطباعة'),
+          SnackBar(
+            content: Text(S.printError),
             backgroundColor: AppColors.error,
           ),
         );
@@ -151,14 +152,14 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('فحص الطلب #${widget.order.orderNumber.substring(0, 8)}...'),
+        title: Text(S.checkOrderNum(widget.order.orderNumber.substring(0, 8))),
         backgroundColor: AppColors.pending,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.print),
             onPressed: () => InvoiceService.generateAndPrintInvoice(widget.order),
-            tooltip: 'طباعة',
+            tooltip: S.print_,
           ),
         ],
       ),
@@ -200,16 +201,16 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
             children: [
               _buildHeaderInfo('Position', widget.order.position ?? '-', Icons.location_on),
               _buildHeaderInfo('Zone', '${widget.order.zone}/${widget.order.totalZone}', Icons.map),
-              _buildHeaderInfo('الحي', widget.order.neighborhood ?? '-', Icons.home),
+              _buildHeaderInfo(S.district, widget.order.neighborhood ?? '-', Icons.home),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildHeaderInfo('الوقت', widget.order.slotTime ?? '-', Icons.schedule),
-              _buildHeaderInfo('التاريخ', widget.order.slotDate ?? '-', Icons.calendar_today),
-              _buildHeaderInfo('الأكياس', '${widget.order.bagsCount}', Icons.shopping_bag),
+              _buildHeaderInfo(S.time, widget.order.slotTime ?? '-', Icons.schedule),
+              _buildHeaderInfo(S.date, widget.order.slotDate ?? '-', Icons.calendar_today),
+              _buildHeaderInfo(S.bags, '${widget.order.bagsCount}', Icons.shopping_bag),
             ],
           ),
         ],
@@ -245,7 +246,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'تقدم الفحص',
+                S.inspectionProgress,
                 style: TextStyle(color: Colors.grey[600]),
               ),
               Text(
@@ -367,7 +368,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
                 TextButton.icon(
                   onPressed: () => _showItemNoteDialog(item),
                   icon: const Icon(Icons.note_add, size: 18),
-                  label: const Text('ملاحظة'),
+                  label: Text(S.note),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.grey[700],
                   ),
@@ -376,7 +377,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
                 TextButton.icon(
                   onPressed: () => _reportItemIssue(item),
                   icon: const Icon(Icons.report_problem, size: 18),
-                  label: const Text('مشكلة'),
+                  label: Text(S.problem),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.error,
                   ),
@@ -418,19 +419,19 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('ملاحظة: ${item.productName}'),
+        title: Text(S.noteFor(item.productName)),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'أدخل ملاحظتك هنا...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: S.enterNoteHere,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -439,7 +440,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
               });
               Navigator.pop(context);
             },
-            child: const Text('حفظ'),
+            child: Text(S.save),
           ),
         ],
       ),
@@ -454,22 +455,22 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
           children: [
             const Icon(Icons.report_problem, color: AppColors.error),
             const SizedBox(width: 8),
-            Expanded(child: Text('الإبلاغ عن مشكلة: ${item.productName}')),
+            Expanded(child: Text(S.reportIssueFor(item.productName))),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildIssueOption('منتج تالف', Icons.broken_image),
-            _buildIssueOption('كمية خاطئة', Icons.numbers),
-            _buildIssueOption('منتج خاطئ', Icons.swap_horiz),
-            _buildIssueOption('منتج مفقود', Icons.search_off),
+            _buildIssueOption(S.damagedProduct, Icons.broken_image),
+            _buildIssueOption(S.wrongQuantity, Icons.numbers),
+            _buildIssueOption(S.wrongProductItem, Icons.swap_horiz),
+            _buildIssueOption(S.missingProduct, Icons.search_off),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
         ],
       ),
@@ -484,7 +485,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم الإبلاغ عن: $label'),
+            content: Text(S.reported(label)),
             backgroundColor: AppColors.pending,
           ),
         );
@@ -512,7 +513,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
             child: ElevatedButton.icon(
               onPressed: _rejectOrder,
               icon: const Icon(Icons.cancel),
-              label: const Text('رفض'),
+              label: Text(S.reject),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
@@ -527,7 +528,7 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
             child: ElevatedButton.icon(
               onPressed: allItemsChecked ? _approveOrder : null,
               icon: const Icon(Icons.check_circle),
-              label: Text(allItemsChecked ? 'موافقة وطباعة' : 'افحص جميع المنتجات'),
+              label: Text(allItemsChecked ? S.approveAndPrint : S.checkAllProducts),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 foregroundColor: Colors.white,

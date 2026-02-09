@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../models/order_model.dart';
 
 class PositionsGrid extends StatelessWidget {
@@ -80,11 +81,11 @@ class PositionsGrid extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildLegendItem(AppColors.error, 'يحتاج فحص'),
+          _buildLegendItem(AppColors.error, S.needsCheck),
           const SizedBox(width: 16),
-          _buildLegendItem(AppColors.warning, 'جاري الفحص'),
+          _buildLegendItem(AppColors.warning, S.inspectionInProgress),
           const SizedBox(width: 16),
-          _buildLegendItem(AppColors.success, 'مكتمل'),
+          _buildLegendItem(AppColors.success, S.statusCompleted),
         ],
       ),
     );
@@ -187,7 +188,7 @@ class PositionsStats extends StatelessWidget {
         children: [
           Expanded(
             child: _buildStatItem(
-              'يحتاج تشييك',
+              S.needsCheck,
               pendingCount,
               AppColors.error,
               Icons.error_outline,
@@ -195,7 +196,7 @@ class PositionsStats extends StatelessWidget {
           ),
           Expanded(
             child: _buildStatItem(
-              'جاري الفحص',
+              S.inspectionInProgress,
               inProgressCount,
               AppColors.warning,
               Icons.pending,
@@ -203,7 +204,7 @@ class PositionsStats extends StatelessWidget {
           ),
           Expanded(
             child: _buildStatItem(
-              'مكتمل',
+              S.statusCompleted,
               completedCount,
               AppColors.success,
               Icons.check_circle,
@@ -211,7 +212,7 @@ class PositionsStats extends StatelessWidget {
           ),
           Expanded(
             child: _buildStatItem(
-              'فارغ',
+              S.empty,
               emptyCount,
               Colors.grey,
               Icons.crop_square,

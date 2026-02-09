@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
 
@@ -41,7 +42,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الاستثناءات المعلقة'),
+        title: Text(S.pendingExceptions),
         centerTitle: true,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -74,7 +75,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
                   ElevatedButton.icon(
                     onPressed: _loadExceptions,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('إعادة المحاولة'),
+                    label: Text(S.retry),
                   ),
                 ],
               ),
@@ -88,9 +89,9 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
                 children: [
                   Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  const Text(
-                    'لا توجد استثناءات معلقة',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  Text(
+                    S.noPendingExceptions,
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
               ),
@@ -147,7 +148,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    orderNumber.isNotEmpty ? orderNumber : 'استثناء',
+                    orderNumber.isNotEmpty ? orderNumber : S.exception,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -203,7 +204,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildInfoChip(Icons.numbers, '$quantity الكمية'),
+                _buildInfoChip(Icons.numbers, '$quantity ${S.quantity}'),
                 if (barcode.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   _buildInfoChip(Icons.qr_code, barcode),
@@ -221,7 +222,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _handleApprove(exception, approved: false),
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('رفض'),
+                    label: Text(S.reject),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
@@ -234,7 +235,7 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _handleApprove(exception, approved: true),
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('قبول'),
+                    label: Text(S.accept),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -262,8 +263,8 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? (approved ? 'تم قبول الاستثناء' : 'تم رفض الاستثناء')
-            : 'فشل العملية'),
+            ? (approved ? S.exceptionAccepted : S.exceptionRejected)
+            : S.operationFailed),
         backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
@@ -287,19 +288,19 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
     switch (type.toUpperCase()) {
       case 'EXCEPTION_OUT_OF_STOCK':
         color = Colors.red;
-        label = 'غير متوفر';
+        label = S.outOfStock;
         break;
       case 'EXCEPTION_DAMAGED':
         color = Colors.orange;
-        label = 'تالف';
+        label = S.damaged;
         break;
       case 'EXCEPTION_WRONG_ITEM':
         color = Colors.purple;
-        label = 'منتج خاطئ';
+        label = S.wrongProduct;
         break;
       case 'EXCEPTION_SHORT_QUANTITY':
         color = Colors.amber[800]!;
-        label = 'كمية ناقصة';
+        label = S.shortQuantity;
         break;
       default:
         color = Colors.grey;

@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 class QCZoneTask {
   final String taskId;
   final String zoneName;
@@ -95,17 +97,17 @@ enum QCStatus {
   String get displayName {
     switch (this) {
       case QCStatus.unspecified:
-        return 'غير محدد';
+        return S.qcUnspecified;
       case QCStatus.pending:
-        return 'قيد الانتظار';
+        return S.qcPending;
       case QCStatus.inProgress:
-        return 'جاري الفحص';
+        return S.qcInProgress;
       case QCStatus.passed:
-        return 'ناجح';
+        return S.qcPassed;
       case QCStatus.failed:
-        return 'مرفوض';
+        return S.qcFailed;
       case QCStatus.overridden:
-        return 'تم التجاوز';
+        return S.qcOverridden;
     }
   }
 }

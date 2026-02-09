@@ -12,6 +12,7 @@ import 'providers/picker_provider.dart';
 import 'providers/picking_provider.dart';
 import 'providers/master_picker_provider.dart';
 import 'providers/qc_provider.dart';
+import 'providers/locale_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 
@@ -42,57 +43,66 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => PickingProvider()),
         ChangeNotifierProvider(create: (_) => MasterPickerProvider()),
         ChangeNotifierProvider(create: (_) => QCProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
-      child: _AuthListener(
-        child: MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'Q_Warehouse',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: AppColors.primary,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-            appBarTheme: const AppBarTheme(
-              centerTitle: true,
-              elevation: 0,
-            ),
-            cardTheme: CardThemeData(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      child: Consumer<LocaleProvider>(
+        builder: (context, localeProvider, _) {
+          // Sync language to API headers
+          context.read<AuthProvider>().apiService.setLanguage(localeProvider.locale.languageCode);
+          return _AuthListener(
+          child: MaterialApp(
+            key: ValueKey(localeProvider.locale.languageCode),
+            navigatorKey: navigatorKey,
+            title: 'Q_Warehouse',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: AppColors.primary,
+                brightness: Brightness.light,
               ),
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              useMaterial3: true,
+              appBarTheme: const AppBarTheme(
+                centerTitle: true,
+                elevation: 0,
+              ),
+              cardTheme: CardThemeData(
+                elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
+              inputDecorationTheme: InputDecorationTheme(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
+            locale: localeProvider.locale,
+            supportedLocales: const [
+              Locale('ar'),
+              Locale('en'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            home: const SplashScreen(),
           ),
-          locale: const Locale('ar'),
-          supportedLocales: const [
-            Locale('ar'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          home: const SplashScreen(),
-        ),
+        );
+        },
       ),
     );
   }

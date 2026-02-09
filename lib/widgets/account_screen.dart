@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../models/picker_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/locale_provider.dart';
 import '../services/api_service.dart';
 import '../screens/login_screen.dart';
 
@@ -54,7 +56,7 @@ class _AccountScreenState extends State<AccountScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'فشل جلب البيانات. تحقق من اتصال الإنترنت';
+        _error = S.failedToLoadData;
         _isLoading = false;
       });
     }
@@ -64,23 +66,23 @@ class _AccountScreenState extends State<AccountScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.logout, color: AppColors.error),
-            SizedBox(width: 8),
-            Text('تسجيل الخروج'),
+            const Icon(Icons.logout, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text(S.logout),
           ],
         ),
-        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        content: Text(S.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
-            child: const Text('تسجيل الخروج'),
+            child: Text(S.logout),
           ),
         ],
       ),
@@ -112,7 +114,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('حسابي'),
+        title: Text(S.myAccount),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -138,7 +140,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ElevatedButton.icon(
               onPressed: _loadProfile,
               icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
+              label: Text(S.retry),
             ),
             const SizedBox(height: 32),
             _buildLogoutButton(),
@@ -163,6 +165,8 @@ class _AccountScreenState extends State<AccountScreen> {
             _buildInfoCard(picker),
             const SizedBox(height: 16),
             _buildChangePasswordButton(),
+            const SizedBox(height: 16),
+            _buildLanguageToggle(),
             const SizedBox(height: 16),
             _buildLogoutButton(),
             const SizedBox(height: 16),
@@ -224,7 +228,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    picker.isOnDuty ? 'في الخدمة' : 'خارج الخدمة',
+                    picker.isOnDuty ? S.onDuty : S.offDuty,
                     style: TextStyle(
                       color: picker.isOnDuty ? AppColors.success : Colors.grey,
                       fontWeight: FontWeight.w500,
@@ -246,26 +250,26 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.info_outline, color: AppColors.primary),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, color: AppColors.primary),
+                const SizedBox(width: 8),
                 Text(
-                  'معلومات الحساب',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  S.accountInfo,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(height: 24),
-            _buildInfoRow(Icons.phone, 'رقم الجوال', picker.phone),
+            _buildInfoRow(Icons.phone, S.phoneNumber, picker.phone),
             if (picker.employeeId.isNotEmpty)
-              _buildInfoRow(Icons.badge, 'الرقم الوظيفي', picker.employeeId),
+              _buildInfoRow(Icons.badge, S.employeeId, picker.employeeId),
             if (picker.warehouseName.isNotEmpty)
-              _buildInfoRow(Icons.warehouse, 'المستودع', picker.warehouseName),
+              _buildInfoRow(Icons.warehouse, S.warehouse, picker.warehouseName),
             if (picker.zoneName?.isNotEmpty == true)
-              _buildInfoRow(Icons.location_on, 'المنطقة (Zone)', picker.zoneName!),
+              _buildInfoRow(Icons.location_on, S.zone, picker.zoneName!),
             if (picker.stationName?.isNotEmpty == true)
-              _buildInfoRow(Icons.store, 'المحطة', picker.stationName!),
+              _buildInfoRow(Icons.store, S.station, picker.stationName!),
           ],
         ),
       ),
@@ -296,7 +300,7 @@ class _AccountScreenState extends State<AccountScreen> {
       child: OutlinedButton.icon(
         onPressed: _showChangePasswordDialog,
         icon: const Icon(Icons.lock_outline),
-        label: const Text('تغيير كلمة المرور'),
+        label: Text(S.changePassword),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary),
@@ -317,7 +321,7 @@ class _AccountScreenState extends State<AccountScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('تغيير كلمة المرور', textAlign: TextAlign.center),
+          title: Text(S.changePassword, textAlign: TextAlign.center),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -325,7 +329,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 controller: currentController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'كلمة المرور الحالية',
+                  labelText: S.currentPassword,
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -335,7 +339,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 controller: newController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'كلمة المرور الجديدة',
+                  labelText: S.newPassword,
                   prefixIcon: const Icon(Icons.lock),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -345,7 +349,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 controller: confirmController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'تأكيد كلمة المرور الجديدة',
+                  labelText: S.confirmNewPassword,
                   prefixIcon: const Icon(Icons.lock),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -355,7 +359,7 @@ class _AccountScreenState extends State<AccountScreen> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
+              child: Text(S.cancel),
             ),
             ElevatedButton(
               onPressed: isLoading
@@ -369,8 +373,8 @@ class _AccountScreenState extends State<AccountScreen> {
 
                       if (newPass != confirm) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('كلمة المرور الجديدة غير متطابقة'),
+                          SnackBar(
+                            content: Text(S.newPasswordMismatch),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -385,8 +389,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تم تغيير كلمة المرور بنجاح'),
+                            SnackBar(
+                              content: Text(S.passwordChangedSuccess),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -402,8 +406,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         setDialogState(() => isLoading = false);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('فشل تغيير كلمة المرور'),
+                            SnackBar(
+                              content: Text(S.failedToChangePassword),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -420,11 +424,47 @@ class _AccountScreenState extends State<AccountScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('تغيير'),
+                  : Text(S.change),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLanguageToggle() {
+    return Consumer<LocaleProvider>(
+      builder: (context, localeProvider, _) {
+        final isAr = localeProvider.locale.languageCode == 'ar';
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.language, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Text(S.language, style: const TextStyle(fontSize: 16)),
+                const Spacer(),
+                TextButton(
+                  onPressed: isAr ? null : () => localeProvider.setLocale(const Locale('ar')),
+                  child: Text('العربية', style: TextStyle(
+                    fontWeight: isAr ? FontWeight.bold : FontWeight.normal,
+                    color: isAr ? AppColors.primary : Colors.grey,
+                  )),
+                ),
+                Container(width: 1, height: 20, color: Colors.grey[300]),
+                TextButton(
+                  onPressed: isAr ? () => localeProvider.setLocale(const Locale('en')) : null,
+                  child: Text('English', style: TextStyle(
+                    fontWeight: !isAr ? FontWeight.bold : FontWeight.normal,
+                    color: !isAr ? AppColors.primary : Colors.grey,
+                  )),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -434,7 +474,7 @@ class _AccountScreenState extends State<AccountScreen> {
       child: OutlinedButton.icon(
         onPressed: _logout,
         icon: const Icon(Icons.logout),
-        label: const Text('تسجيل الخروج'),
+        label: Text(S.logout),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.error,
           side: const BorderSide(color: AppColors.error),

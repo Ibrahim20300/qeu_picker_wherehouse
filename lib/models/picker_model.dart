@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 class PickerModel {
   final String id;
   final String name;
@@ -42,22 +44,22 @@ class PickerModel {
   String get roleDisplayName {
     final roleStr = role.toLowerCase();
     if (roleStr.contains('supervisor') || roleStr.contains('super')) {
-      return 'سوبر فايزر';
+      return S.roleSupervisor;
     } else if (roleStr.contains('qc') || roleStr.contains('quality')) {
-      return 'مراقب جودة';
+      return S.roleQC;
     } else {
-      return 'بيكر';
+      return S.rolePicker;
     }
   }
 
   String get statusDisplayName {
     switch (status) {
       case 'active':
-        return 'نشط';
+        return S.statusActive;
       case 'inactive':
-        return 'غير نشط';
+        return S.statusInactive;
       case 'busy':
-        return 'مشغول';
+        return S.statusBusy;
       default:
         return status;
     }

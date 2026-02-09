@@ -4,6 +4,7 @@ import '../models/picker_model.dart';
 import '../services/api_service.dart';
 import '../services/api_endpoints.dart';
 import '../services/storage_service.dart';
+import '../l10n/app_localizations.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -91,7 +92,7 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['state'] != 'SUCCESS') {
-        throw ApiException(data['message'] ?? 'فشل تسجيل الدخول');
+        throw ApiException(data['message'] ?? S.loginFailed);
       }
 
       final picker = data['picker'] as Map<String, dynamic>;
@@ -136,7 +137,7 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _isLoading = false;
-      _errorMessage = 'فشل الاتصال بالخادم. تحقق من اتصال الإنترنت';
+      _errorMessage = S.serverConnectionFailed;
       notifyListeners();
       return false;
     }
@@ -158,7 +159,7 @@ class AuthProvider extends ChangeNotifier {
     );
     final data = _apiService.handleResponse(response);
     if (data['success'] == false) {
-      throw ApiException(data['message'] ?? 'فشل تغيير كلمة المرور');
+      throw ApiException(data['message'] ?? S.failedToChangePassword);
     }
   }
 

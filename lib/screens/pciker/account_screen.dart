@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/picker_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -52,7 +53,7 @@ class _AccountScreenState extends State<AccountScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'فشل جلب البيانات. تحقق من اتصال الإنترنت';
+        _error = S.failedToLoadData;
         _isLoading = false;
       });
     }
@@ -62,23 +63,23 @@ class _AccountScreenState extends State<AccountScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.logout, color: AppColors.error),
-            SizedBox(width: 8),
-            Text('تسجيل الخروج'),
+            const Icon(Icons.logout, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text(S.logout),
           ],
         ),
-        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        content: Text(S.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('تسجيل الخروج'),
+            child: Text(S.logout),
           ),
         ],
       ),
@@ -102,7 +103,7 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('حسابي'),
+        title: Text(S.myAccount),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -132,7 +133,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ElevatedButton.icon(
               onPressed: _loadProfile,
               icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
+              label: Text(S.retry),
             ),
           ],
         ),
@@ -231,7 +232,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  picker.isOnDuty ? 'في الخدمة' : 'خارج الخدمة',
+                  picker.isOnDuty ? S.onDuty : S.offDuty,
                   style: TextStyle(
                     color: picker.isOnDuty ? AppColors.success : Colors.white70,
                     fontWeight: FontWeight.w500,
@@ -252,13 +253,13 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.analytics, color: AppColors.primary),
-                SizedBox(width: 8),
+                const Icon(Icons.analytics, color: AppColors.primary),
+                const SizedBox(width: 8),
                 Text(
-                  'إحصائيات اليوم',
-                  style: TextStyle(
+                  S.todayStats,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -271,7 +272,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 Expanded(
                   child: _buildStatItem(
                     icon: Icons.task_alt,
-                    label: 'الطلبات المكتملة',
+                    label: S.completedOrders,
                     value: '${picker.tasksCompletedToday}',
                     color: AppColors.success,
                   ),
@@ -280,7 +281,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 Expanded(
                   child: _buildStatItem(
                     icon: Icons.inventory_2,
-                    label: 'المنتجات المجمعة',
+                    label: S.itemsPicked,
                     value: '${picker.itemsPickedToday}',
                     color: AppColors.primary,
                   ),
@@ -338,13 +339,13 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.info_outline, color: AppColors.primary),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, color: AppColors.primary),
+                const SizedBox(width: 8),
                 Text(
-                  'معلومات الحساب',
-                  style: TextStyle(
+                  S.accountInfo,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -352,16 +353,16 @@ class _AccountScreenState extends State<AccountScreen> {
               ],
             ),
             const Divider(height: 24),
-            _buildInfoRow(Icons.phone, 'رقم الجوال', picker.phone),
-            _buildInfoRow(Icons.badge, 'الرقم الوظيفي', picker.employeeId),
-            _buildInfoRow(Icons.warehouse, 'المستودع', picker.warehouseName.isNotEmpty ? picker.warehouseName : '-'),
+            _buildInfoRow(Icons.phone, S.phoneNumber, picker.phone),
+            _buildInfoRow(Icons.badge, S.employeeId, picker.employeeId),
+            _buildInfoRow(Icons.warehouse, S.warehouse, picker.warehouseName.isNotEmpty ? picker.warehouseName : '-'),
             if (picker.zoneName?.isNotEmpty == true)
-              _buildInfoRow(Icons.location_on, 'المنطقة', picker.zoneName!),
+              _buildInfoRow(Icons.location_on, S.zone, picker.zoneName!),
             if (picker.stationName?.isNotEmpty == true)
-              _buildInfoRow(Icons.store, 'المحطة', picker.stationName!),
+              _buildInfoRow(Icons.store, S.station, picker.stationName!),
             _buildInfoRow(
               Icons.circle,
-              'الحالة',
+              S.status,
               picker.statusDisplayName,
               valueColor: picker.isActive ? AppColors.success : AppColors.error,
             ),
@@ -406,10 +407,10 @@ class _AccountScreenState extends State<AccountScreen> {
           children: [
             const Icon(Icons.language, color: AppColors.primary),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'اللغة',
-                style: TextStyle(
+                S.language,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -427,7 +428,7 @@ class _AccountScreenState extends State<AccountScreen> {
               fillColor: AppColors.primary,
               constraints: const BoxConstraints(minWidth: 60, minHeight: 36),
               children: const [
-                Text('عربي', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('\u0639\u0631\u0628\u064a', style: TextStyle(fontWeight: FontWeight.bold)),
                 Text('EN', style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
@@ -443,7 +444,7 @@ class _AccountScreenState extends State<AccountScreen> {
       child: OutlinedButton.icon(
         onPressed: _logout,
         icon: const Icon(Icons.logout),
-        label: const Text('تسجيل الخروج'),
+        label: Text(S.logout),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.error,
           side: const BorderSide(color: AppColors.error),

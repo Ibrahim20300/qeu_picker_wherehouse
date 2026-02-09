@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 
 class TaskDetailScreen extends StatelessWidget {
   final Map<String, dynamic> task;
@@ -36,11 +37,11 @@ class TaskDetailScreen extends StatelessWidget {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: [
-                _buildSummaryChip('$pickedItems/$totalItems', 'منتج', Colors.blue),
+                _buildSummaryChip('$pickedItems/$totalItems', S.product, Colors.blue),
                 if (exceptionItems > 0)
-                  _buildSummaryChip('$exceptionItems', 'استثناء', Colors.orange),
+                  _buildSummaryChip('$exceptionItems', S.exception, Colors.orange),
                 if (pickerName.isNotEmpty)
-                  _buildSummaryChip(pickerName, 'البيكر', Colors.grey[700]!),
+                  _buildSummaryChip(pickerName, S.pickerLabel, Colors.grey[700]!),
                 _buildStatusChip(status),
               ],
             ),
@@ -81,19 +82,19 @@ class TaskDetailScreen extends StatelessWidget {
     switch (status.toUpperCase()) {
       case 'ITEM_PICKED':
         statusColor = Colors.green;
-        statusLabel = 'تم الالتقاط';
+        statusLabel = S.itemPicked;
         break;
       case 'ITEM_OUT_OF_STOCK':
         statusColor = Colors.red;
-        statusLabel = 'غير متوفر';
+        statusLabel = S.outOfStock;
         break;
       case 'ITEM_PENDING':
         statusColor = Colors.orange;
-        statusLabel = 'قيد الانتظار';
+        statusLabel = S.statusPending;
         break;
       case 'ITEM_PARTIALLY_PICKED':
         statusColor = Colors.amber;
-        statusLabel = 'التقاط جزئي';
+        statusLabel = S.partiallyPicked;
         break;
       default:
         statusColor = Colors.grey;
@@ -178,7 +179,7 @@ class TaskDetailScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 4),
-                  Text('الموقع', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  Text(S.location, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                   const SizedBox(width: 8),
                   Text(location, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
@@ -202,7 +203,7 @@ class TaskDetailScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.qr_code, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 4),
-                  Text('باركود المنتج', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  Text(S.productBarcode, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                   const SizedBox(width: 8),
                   Text(barcode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
@@ -249,27 +250,27 @@ class TaskDetailScreen extends StatelessWidget {
       case 'TASK_PENDING':
       case 'PENDING':
         color = Colors.orange;
-        label = 'قيد الانتظار';
+        label = S.statusPending;
         break;
       case 'TASK_ASSIGNED':
       case 'ASSIGNED':
         color = Colors.indigo;
-        label = 'معيّن';
+        label = S.assignedStatus;
         break;
       case 'TASK_IN_PROGRESS':
       case 'IN_PROGRESS':
         color = Colors.blue;
-        label = 'جاري التحضير';
+        label = S.statusInProgress;
         break;
       case 'TASK_COMPLETED':
       case 'COMPLETED':
         color = Colors.green;
-        label = 'مكتمل';
+        label = S.statusCompleted;
         break;
       case 'TASK_CANCELLED':
       case 'CANCELLED':
         color = Colors.red;
-        label = 'ملغي';
+        label = S.statusCancelled;
         break;
       default:
         color = Colors.grey;

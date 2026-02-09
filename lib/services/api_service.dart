@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_endpoints.dart';
+import '../l10n/app_localizations.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -57,7 +58,7 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     } else {
-      final message = body['message'] ?? body['error'] ?? 'حدث خطأ غير متوقع';
+      final message = body['message'] ?? body['error'] ?? S.unexpectedError;
       throw ApiException(message, statusCode: response.statusCode);
     }
   }

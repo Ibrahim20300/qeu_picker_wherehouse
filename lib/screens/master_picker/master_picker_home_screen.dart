@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
 import '../../services/invoice_service.dart';
@@ -78,7 +79,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   }
 
   String _convertArabicNumbers(String input) {
-    const arabic = '٠١٢٣٤٥٦٧٨٩';
+    const arabic = '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669';
     const english = '0123456789';
     var result = input;
     for (var i = 0; i < arabic.length; i++) {
@@ -113,7 +114,7 @@ print(scanned);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('لم يتم العثور على طلب: $scanned'),
+          content: Text(S.orderNotFound(scanned)),
           backgroundColor: Colors.red,
         ),
       );
@@ -124,7 +125,7 @@ print(scanned);
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('لوحة الماستر بيكر'),
+        title: Text(S.masterPickerDashboard),
         centerTitle: true,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -174,7 +175,7 @@ print(scanned);
               autofocus: true,
               textDirection: TextDirection.ltr,
               decoration: InputDecoration(
-                hintText: 'امسح باركود الطلب...',
+                hintText: S.scanOrderBarcode,
                 prefixIcon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.clear, size: 20),
@@ -220,7 +221,7 @@ print(scanned);
                         ElevatedButton.icon(
                           onPressed: _loadTasks,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('إعادة المحاولة'),
+                          label: Text(S.retry),
                         ),
                       ],
                     ),
@@ -234,9 +235,9 @@ print(scanned);
                       children: [
                         Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
-                        const Text(
-                          'لا توجد مهام حالياً',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        Text(
+                          S.noTasksCurrently,
+                          style: const TextStyle(fontSize: 18, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -253,7 +254,7 @@ print(scanned);
                 if (filteredTasks.isEmpty && _searchQuery.isNotEmpty) {
                   return Center(
                     child: Text(
-                      'لا توجد نتائج لـ "$_searchQuery"',
+                      S.noResultsFor(_searchQuery),
                       style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   );
@@ -335,13 +336,13 @@ print(scanned);
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildInfoChip(Icons.inventory_2_outlined, '$pickedItems/$totalItems منتج'),
+                _buildInfoChip(Icons.inventory_2_outlined, '$pickedItems/$totalItems ${S.product}'),
                 const SizedBox(width: 8),
                 if (exceptionItems > 0) ...[
-                  _buildInfoChip(Icons.warning_amber, '$exceptionItems استثناء', color: Colors.orange),
+                  _buildInfoChip(Icons.warning_amber, '$exceptionItems ${S.exception}', color: Colors.orange),
                   const SizedBox(width: 8),
                 ],
-                _buildInfoChip(Icons.shopping_bag_outlined, '$packageCount كيس'),
+                _buildInfoChip(Icons.shopping_bag_outlined, '$packageCount ${S.bag}'),
               ],
             ),
             const SizedBox(height: 8),
@@ -352,7 +353,7 @@ print(scanned);
                 if (district.isNotEmpty && zoneName.isNotEmpty)
                   const SizedBox(width: 8),
                 if (zoneName.isNotEmpty)
-                  _buildInfoChip(Icons.grid_view, 'زون $zoneName'),
+                  _buildInfoChip(Icons.grid_view, S.zonePrefix(zoneName)),
                 if (slotTime.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   _buildInfoChip(Icons.schedule, slotTime),
@@ -405,27 +406,27 @@ print(scanned);
       case 'TASK_PENDING':
       case 'PENDING':
         color = Colors.orange;
-        label = 'قيد الانتظار';
+        label = S.statusPending;
         break;
       case 'TASK_ASSIGNED':
       case 'ASSIGNED':
         color = Colors.indigo;
-        label = 'معيّن';
+        label = S.assignedStatus;
         break;
       case 'TASK_IN_PROGRESS':
       case 'IN_PROGRESS':
         color = Colors.blue;
-        label = 'جاري التحضير';
+        label = S.statusInProgress;
         break;
       case 'TASK_COMPLETED':
       case 'COMPLETED':
         color = Colors.green;
-        label = 'مكتمل';
+        label = S.statusCompleted;
         break;
       case 'TASK_CANCELLED':
       case 'CANCELLED':
         color = Colors.red;
-        label = 'ملغي';
+        label = S.statusCancelled;
         break;
       default:
         color = Colors.grey;

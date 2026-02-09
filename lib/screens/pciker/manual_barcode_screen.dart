@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../../constants/app_colors.dart';
 import '../../widgets/numeric_keypad.dart';
 
@@ -51,7 +52,7 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
   void _onConfirm() {
     if (_barcode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('أدخل رقم الباركود')),
+        SnackBar(content: Text(S.enterBarcodeNumber)),
       );
       return;
     }
@@ -63,7 +64,7 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('إدخال باركود يدوي'),
+        title: Text(S.manualBarcodeEntry),
         centerTitle: true,
         actions: [
           IconButton(
@@ -168,9 +169,9 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'الكمية',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Text(
+            S.quantity,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           IconButton(
@@ -352,9 +353,9 @@ class _ManualBarcodeScreenState extends State<ManualBarcodeScreen> {
         child: ElevatedButton.icon(
           onPressed: _onConfirm,
           icon: const Icon(Icons.check_circle, size: 28),
-          label: const Text(
-            'تأكيد',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          label: Text(
+            S.confirm,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,

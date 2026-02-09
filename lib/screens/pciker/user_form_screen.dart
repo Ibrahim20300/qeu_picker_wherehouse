@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/users_provider.dart';
 import '../../models/user_model.dart';
@@ -76,7 +77,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isEditing ? 'تم تعديل المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح',
+            isEditing ? S.userUpdatedSuccess : S.userAddedSuccess,
           ),
           backgroundColor: AppColors.success,
         ),
@@ -88,7 +89,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'تعديل المستخدم' : 'إضافة مستخدم جديد'),
+        title: Text(isEditing ? S.editUser : S.addNewUser),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -99,13 +100,13 @@ class _UserFormScreenState extends State<UserFormScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'الاسم',
-                  prefixIcon: Icon(Icons.person_outline),
+                decoration: InputDecoration(
+                  labelText: S.name,
+                  prefixIcon: const Icon(Icons.person_outline),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'الرجاء إدخال الاسم';
+                    return S.pleaseEnterName;
                   }
                   return null;
                 },
@@ -114,13 +115,13 @@ class _UserFormScreenState extends State<UserFormScreen> {
               TextFormField(
                 controller: _teamNameController,
                 textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(
-                  labelText: 'اسم الفريق (للدخول)',
-                  prefixIcon: Icon(Icons.groups_outlined),
+                decoration: InputDecoration(
+                  labelText: S.teamNameForLogin,
+                  prefixIcon: const Icon(Icons.groups_outlined),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'الرجاء إدخال اسم الفريق';
+                    return S.pleaseEnterTeamName;
                   }
                   return null;
                 },
@@ -131,7 +132,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 obscureText: _obscurePassword,
                 textDirection: TextDirection.ltr,
                 decoration: InputDecoration(
-                  labelText: 'كلمة المرور',
+                  labelText: S.password,
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -146,10 +147,10 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'الرجاء إدخال كلمة المرور';
+                    return S.pleaseEnterPassword;
                   }
                   if (value.length < 6) {
-                    return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+                    return S.passwordMin6;
                   }
                   return null;
                 },
@@ -157,14 +158,14 @@ class _UserFormScreenState extends State<UserFormScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<UserRole>(
                 value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'نوع المستخدم',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                decoration: InputDecoration(
+                  labelText: S.userType,
+                  prefixIcon: const Icon(Icons.badge_outlined),
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: UserRole.picker,
-                    child: Text('بيكر'),
+                    child: Text(S.picker),
                   ),
                 ],
                 onChanged: (value) {
@@ -175,8 +176,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('الحالة'),
-                subtitle: Text(_isActive ? 'نشط' : 'موقف'),
+                title: Text(S.status),
+                subtitle: Text(_isActive ? S.active : S.suspended),
                 value: _isActive,
                 onChanged: (value) {
                   setState(() => _isActive = value);
@@ -198,7 +199,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Text(
-                          isEditing ? 'حفظ التعديلات' : 'إضافة المستخدم',
+                          isEditing ? S.saveChanges : S.addUser,
                           style: const TextStyle(fontSize: 16),
                         ),
                 ),

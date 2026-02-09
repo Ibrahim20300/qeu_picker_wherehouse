@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/qc_provider.dart';
 import '../../models/qc_check_model.dart';
@@ -100,7 +101,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('لم يتم العثور على طلب: $scannedValue'),
+          content: Text(S.orderNotFound(scannedValue)),
           backgroundColor: AppColors.error,
         ),
       );
@@ -133,7 +134,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(qcProvider.startError ?? 'فشل بدء الفحص'),
+          content: Text(qcProvider.startError ?? S.failedToStartInspection),
           backgroundColor: AppColors.error,
         ),
       );
@@ -158,7 +159,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('مراقبة الجودة'),
+        title: Text(S.qualityControl),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -247,7 +248,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
               ElevatedButton.icon(
                 onPressed: _loadChecks,
                 icon: const Icon(Icons.refresh),
-                label: const Text('إعادة المحاولة'),
+                label: Text(S.retry),
               ),
             ],
           ),
@@ -269,7 +270,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                   Icon(Icons.checklist, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'لا توجد فحوصات',
+                    S.noInspections,
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                 ],
@@ -309,7 +310,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                     textDirection: TextDirection.ltr,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: 'رقم الطلب',
+                      hintText: S.orderNumber,
                       hintTextDirection: TextDirection.rtl,
                       prefixIcon: const Icon(Icons.receipt_long, size: 20),
                       suffixIcon: _orderQuery.isNotEmpty
@@ -339,7 +340,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                     textDirection: TextDirection.ltr,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: 'الموقع',
+                      hintText: S.position,
             
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -358,7 +359,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
             child: filteredChecks.isEmpty
                 ? Center(
                     child: Text(
-                      'لا توجد نتائج',
+                      S.noResults,
                       style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   )
@@ -447,13 +448,13 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
               // Stats row
               Row(
                 children: [
-                  _buildInfoChip(Icons.shopping_bag_outlined, 'أكياس: ${check.expectedPackageCount}'),
+                  _buildInfoChip(Icons.shopping_bag_outlined, S.bagsCount(check.expectedPackageCount)),
                   const SizedBox(width: 12),
-                  _buildInfoChip(Icons.map_outlined, '${check.zoneTasks.length} مناطق'),
+                  _buildInfoChip(Icons.map_outlined, S.zonesCount(check.zoneTasks.length)),
                   const Spacer(),
                   if (check.totalZoneItems > 0)
                     Text(
-                      '${check.totalZonePicked}/${check.totalZoneItems} منتج',
+                      '${check.totalZonePicked}/${check.totalZoneItems} ${S.product}',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                 ],
@@ -471,7 +472,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                     icon: context.watch<QCProvider>().startLoading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.play_arrow_rounded),
-                    label: const Text('ابدأ الفحص'),
+                    label: Text(S.startInspection),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -535,7 +536,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '${zone.exceptionItems} استثناء',
+                '${zone.exceptionItems} ${S.exception}',
                 style: const TextStyle(
                   color: AppColors.error,
                   fontSize: 10,
@@ -546,7 +547,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
           ],
           const SizedBox(width: 8),
           Text(
-            '${zone.packageCount} كيس',
+            '${zone.packageCount} ${S.bag}',
             style: TextStyle(color: Colors.grey[500], fontSize: 12),
           ),
         ],

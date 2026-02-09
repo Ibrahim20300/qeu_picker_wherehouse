@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barcode_widget/barcode_widget.dart' as bw;
+import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/picking_provider.dart';
 import '../../models/order_model.dart';
@@ -43,7 +44,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     if (pickingProvider.taskDetailsLoading && pickingProvider.taskDetails == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('تفاصيل المهمة'),
+          title: Text(S.taskDetails),
           backgroundColor: AppColors.primary,
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -53,7 +54,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     if (pickingProvider.taskDetailsError != null && pickingProvider.taskDetails == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('تفاصيل المهمة'),
+          title: Text(S.taskDetails),
           backgroundColor: AppColors.primary,
         ),
         body: Center(
@@ -71,7 +72,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               ElevatedButton.icon(
                 onPressed: _loadTaskDetails,
                 icon: const Icon(Icons.refresh),
-                label: const Text('إعادة المحاولة'),
+                label: Text(S.retry),
               ),
             ],
           ),
@@ -82,7 +83,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     if (pickingProvider.taskDetails == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('تفاصيل المهمة'),
+          title: Text(S.taskDetails),
           backgroundColor: AppColors.primary,
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -103,7 +104,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('طلب #${task.orderNumber.length > 6 ? task.orderNumber.substring(task.orderNumber.length - 6) : task.orderNumber}'),
+        title: Text(S.orderNum(task.orderNumber.length > 6 ? task.orderNumber.substring(task.orderNumber.length - 6) : task.orderNumber)),
         backgroundColor: AppColors.primary,
         actions: [
           IconButton(
@@ -136,7 +137,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'طلب #${task.orderNumber.length > 6 ? task.orderNumber.substring(task.orderNumber.length - 6) : task.orderNumber}',
+                                    S.orderNum(task.orderNumber.length > 6 ? task.orderNumber.substring(task.orderNumber.length - 6) : task.orderNumber),
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -169,7 +170,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '$actualPicked / ${task.totalItems} منتج',
+                              '$actualPicked / ${task.totalItems} ${S.product}',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
@@ -178,9 +179,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     ),
                     const SizedBox(height: 16),
                     // Items list
-                    const Text(
-                      'المنتجات',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Text(
+                      S.products,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     ...items.map((item) => _buildTaskItemCard(item)),
@@ -210,8 +211,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                       ? ElevatedButton.icon(
                           onPressed: () => _onCompleteTask(task),
                           icon: const Icon(Icons.check_circle),
-                          label: const Text(
-                            'إكمال الطلب',
+                          label: Text(
+                            S.completeOrder,
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -227,7 +228,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           onPressed: () => _onResumeTaskPicking(task),
                           icon: const Icon(Icons.play_circle_fill),
                           label: Text(
-                            'التحضير الآن  ($actualPicked/${task.totalItems})',
+                            S.prepareNow(actualPicked, task.totalItems),
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -258,7 +259,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     );
 
     if (result == true && mounted) {
-      SnackbarHelper.success(context, 'تم إكمال التحضير بنجاح');
+      SnackbarHelper.success(context, S.preparationCompletedSuccess);
       Navigator.pop(context);
     } else {
       _loadTaskDetails();
@@ -288,12 +289,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
       pickingProvider.reset();
 
       if (mounted) {
-        SnackbarHelper.success(context, 'تم إكمال الطلب بنجاح');
+        SnackbarHelper.success(context, S.orderCompletedSuccess);
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        SnackbarHelper.error(context, 'فشل إكمال الطلب. حاول مرة أخرى');
+        SnackbarHelper.error(context, S.failedToCompleteOrder);
       }
     }
   }
@@ -310,9 +311,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'باركود الطلب',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                S.orderBarcode,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
               bw.BarcodeWidget(
@@ -326,7 +327,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
+                child: Text(S.close),
               ),
             ],
           ),
@@ -496,7 +497,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isMissing ? 'مفقود' : '$pickedCount / ${item.requiredQuantity}',
+                          isMissing ? S.missing : '$pickedCount / ${item.requiredQuantity}',
                           style: TextStyle(
                             color: isMissing
                                 ? AppColors.error
