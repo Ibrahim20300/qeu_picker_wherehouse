@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'constants/app_colors.dart';
@@ -33,6 +34,19 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   @override
+  void initState() {
+    super.initState();
+    _initAppVersion();
+  }
+
+  String _appVersion = '';
+
+  Future<void> _initAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() => _appVersion = info.version);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
@@ -47,8 +61,10 @@ class _MyAppState extends State<MyApp> {
       ],
       child: Consumer<LocaleProvider>(
         builder: (context, localeProvider, _) {
-          // Sync language to API headers
-          context.read<AuthProvider>().apiService.setLanguage(localeProvider.locale.languageCode);
+          // Sync language and app version to API headers
+          final apiService = context.read<AuthProvider>().apiService;
+          apiService.setLanguage(localeProvider.locale.languageCode);
+          if (_appVersion.isNotEmpty) apiService.setAppVersion(_appVersion);
           return _AuthListener(
           child: MaterialApp(
             key: ValueKey(localeProvider.locale.languageCode),

@@ -23,6 +23,7 @@ class ApiService {
   String? _accessToken;
   String? _refreshToken;
   String _language = 'ar';
+  String _appVersion = '';
   bool _isRefreshing = false;
 
   /// Set these callbacks from AuthProvider to persist new tokens / force logout.
@@ -37,10 +38,15 @@ class ApiService {
     _language = lang;
   }
 
+  void setAppVersion(String version) {
+    _appVersion = version;
+  }
+
   Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'Accept-Language': _language,
+    if (_appVersion.isNotEmpty) 'X-App-Version': _appVersion,
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
 
@@ -76,6 +82,7 @@ class ApiService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Accept-Language': _language,
+          if (_appVersion.isNotEmpty) 'X-App-Version': _appVersion,
         },
         body: jsonEncode({'refresh_token': _refreshToken}),
       );
