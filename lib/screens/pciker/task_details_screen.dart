@@ -227,7 +227,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           onPressed: () => _onResumeTaskPicking(task),
                           icon: const Icon(Icons.play_circle_fill),
                           label: Text(
-                            'استكمال التحضير ($actualPicked/${task.totalItems})',
+                            'التحضير الآن  ($actualPicked/${task.totalItems})',
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(

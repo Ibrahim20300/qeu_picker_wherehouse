@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -473,11 +474,21 @@ class _OrdersTabState extends State<_OrdersTab> {
   List<dynamic> _tasks = [];
   bool _isLoading = true;
   String? _error;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _loadTasks(hide: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _startPicking(Map<String, dynamic> task) async {
@@ -522,11 +533,14 @@ class _OrdersTabState extends State<_OrdersTab> {
     }
   }
 
-  Future<void> _loadTasks() async {
-    setState(() {
+  Future<void> _loadTasks({bool hide=false}) async {
+    if(hide==false){
+          setState(() {
       _isLoading = true;
       _error = null;
     });
+
+    }
 
     try {
       final pickingProvider = context.read<PickingProvider>();
