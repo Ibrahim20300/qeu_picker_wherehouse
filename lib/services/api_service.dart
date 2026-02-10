@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'api_endpoints.dart';
 import '../l10n/app_localizations.dart';
@@ -45,8 +46,8 @@ class ApiService {
   Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'Accept-Language': _language,
-    if (_appVersion.isNotEmpty) 'X-App-Version': _appVersion,
+    if (!kIsWeb) 'Accept-Language': _language,
+    if (!kIsWeb && _appVersion.isNotEmpty) 'X-Qeu-App-Version': _appVersion,
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
 
@@ -81,8 +82,8 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Accept-Language': _language,
-          if (_appVersion.isNotEmpty) 'X-App-Version': _appVersion,
+          if (!kIsWeb) 'Accept-Language': _language,
+          if (!kIsWeb && _appVersion.isNotEmpty) 'X-Qeu-App-Version': _appVersion,
         },
         body: jsonEncode({'refresh_token': _refreshToken}),
       );
