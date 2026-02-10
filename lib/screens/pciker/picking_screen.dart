@@ -460,7 +460,7 @@ class _PickingScreenState extends State<PickingScreen> {
           ),
           // اسم المنتج
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             child: Column(
               children: [
                 Text(

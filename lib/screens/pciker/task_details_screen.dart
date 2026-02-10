@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barcode_widget/barcode_widget.dart' as bw;
+import 'package:qeu_pickera/screens/pciker/widgets/scan_barcode_to_print.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/picking_provider.dart';
@@ -14,8 +15,9 @@ import 'picking_screen.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
+  final Map<String, dynamic>? rawTask;
 
-  const TaskDetailsScreen({super.key, required this.taskId});
+  const TaskDetailsScreen({super.key, required this.taskId, this.rawTask});
 
   @override
   State<TaskDetailsScreen> createState() => _TaskDetailsScreenState();
@@ -278,6 +280,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     );
 
     if (bagsCount == null || !mounted) return;
+
+    // عرض البوليصة وانتظار تأكيد الطباعة
+    final printed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScanBarcodeToPrintScreen(task: widget.rawTask ?? task.rawJson),
+      ),
+    );
+
+    if (printed != true || !mounted) return;
 
     try {
       final pickingProvider = context.read<PickingProvider>();

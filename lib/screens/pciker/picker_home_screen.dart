@@ -106,7 +106,7 @@ class _OrdersTabState extends State<_OrdersTab> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TaskDetailsScreen(taskId: taskId),
+            builder: (_) => TaskDetailsScreen(taskId: taskId, rawTask: task),
           ),
         ).then((_) {
           // Refresh tasks when returning
@@ -259,7 +259,7 @@ class _OrdersTabState extends State<_OrdersTab> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => TaskDetailsScreen(taskId: taskId),
+              builder: (_) => TaskDetailsScreen(taskId: taskId, rawTask: task),
             ),
           ).then((_) => _loadTasks());
         },

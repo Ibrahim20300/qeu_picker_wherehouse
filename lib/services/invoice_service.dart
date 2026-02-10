@@ -15,6 +15,12 @@ class InvoiceService {
     marginAll: 4 * PdfPageFormat.mm,
   );
 
+  /// توليد بايتات PDF من بيانات المهمة (للمعاينة)
+  static Future<List<int>> generateBytesFromTask(Map<String, dynamic> task) async {
+    final pdf = await _generatePdfFromTask(task);
+    return pdf.save();
+  }
+
   /// طباعة من بيانات المهمة الخام (API task map)
   static Future<void> printFromTask(Map<String, dynamic> task) async {
     final pdf = await _generatePdfFromTask(task);

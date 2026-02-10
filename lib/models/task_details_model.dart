@@ -78,6 +78,7 @@ class TaskDetailsModel {
   final String customerName;
   final List<OrderItem> items;
   final DateTime createdAt;
+  final Map<String, dynamic> rawJson;
 
   TaskDetailsModel({
     required this.id,
@@ -87,6 +88,7 @@ class TaskDetailsModel {
     required this.customerName,
     required this.items,
     required this.createdAt,
+    required this.rawJson,
   });
 
   factory TaskDetailsModel.fromJson(Map<String, dynamic> json) {
@@ -102,6 +104,7 @@ class TaskDetailsModel {
       customerName: json['customer_name']?.toString() ?? '',
       items: itemsList,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      rawJson: json,
     );
   }
 
