@@ -106,7 +106,7 @@ class _BagsCountScreenState extends State<BagsCountScreen> {
   Widget _buildDisplay() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 32),
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
