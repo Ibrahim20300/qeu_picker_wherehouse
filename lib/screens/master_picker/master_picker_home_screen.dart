@@ -93,7 +93,6 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
 
     final provider = context.read<MasterPickerProvider>();
     final scanned = _convertArabicNumbers(barcode.trim());
-print(scanned);
     // Barcode format: orderNumber-zone (e.g. "ORD123-Z01")
     final orderNumber = scanned.contains('-')
         ? scanned.substring(0, scanned.lastIndexOf('-'))

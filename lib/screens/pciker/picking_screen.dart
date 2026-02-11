@@ -22,9 +22,9 @@ class PickingScreen extends StatefulWidget {
 }
 
 class _PickingScreenState extends State<PickingScreen> {
-  final _scanController = TextEditingController();
-  final _scanFocusNode = FocusNode();
-  Timer? _focusTimer;
+  final _keyboardFocusNode = FocusNode();
+  String _scanBuffer = '';
+  Timer? _scanTimeout;
 
   @override
   void initState() {
@@ -39,30 +39,40 @@ class _PickingScreenState extends State<PickingScreen> {
   }
 
   void _setupScanning() {
-    _scanController.addListener(_onScanInput);
-    _focusTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      SystemChannels.textInput.invokeMethod('TextInput.hide');
-      _requestFocus();
-      SystemChannels.textInput.invokeMethod('TextInput.hide');
-    });
+    _keyboardFocusNode.requestFocus();
   }
 
-  void _requestFocus() {
-    if (mounted && !_scanFocusNode.hasFocus) {
-      _scanFocusNode.requestFocus();
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final key = event.logicalKey;
+
+    // Enter = end of scan
+    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+      _flushScanBuffer();
+      return KeyEventResult.handled;
     }
+
+    // Append printable character to buffer
+    final char = event.character;
+    if (char != null && char.isNotEmpty && char.codeUnitAt(0) >= 32) {
+      _scanBuffer += char;
+      // Reset timeout - process after 150ms of silence (for scanners that don't send Enter)
+      _scanTimeout?.cancel();
+      _scanTimeout = Timer(const Duration(milliseconds: 150), _flushScanBuffer);
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
   }
 
-  void _onScanInput() {
-    final input = _scanController.text.trim();
-    if (input.isEmpty) return;
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted && _scanController.text.isNotEmpty) {
-        _processScan(_scanController.text.trim());
-        _scanController.clear();
-      }
-    });
+  void _flushScanBuffer() {
+    _scanTimeout?.cancel();
+    final barcode = _scanBuffer.trim();
+    _scanBuffer = '';
+    if (barcode.isNotEmpty && mounted) {
+      _processScan(barcode);
+    }
   }
 
   void _processScan(String scannedValue) {
@@ -120,7 +130,7 @@ class _PickingScreenState extends State<PickingScreen> {
         );
         break;
     }
-    _requestFocus();
+    _keyboardFocusNode.requestFocus();
   }
 
   void _showItemCompleteAnimation(VoidCallback onComplete) {
@@ -232,10 +242,8 @@ class _PickingScreenState extends State<PickingScreen> {
 
   @override
   void dispose() {
-    _focusTimer?.cancel();
-    _scanController.removeListener(_onScanInput);
-    _scanController.dispose();
-    _scanFocusNode.dispose();
+    _scanTimeout?.cancel();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -650,40 +658,15 @@ class _PickingScreenState extends State<PickingScreen> {
 
   Widget _buildHiddenScanField() {
     return Positioned(
-      left: -1000,
-      child: SizedBox(
-        width: 1,
-        height: 1,
-        child: TextField(
-          controller: _scanController,
-          focusNode: _scanFocusNode,
-          autofocus: true,
-          textDirection: TextDirection.ltr,
-          enableInteractiveSelection: false,
-          showCursor: false,
-          decoration: const InputDecoration(border: InputBorder.none),
-          onChanged: (value) {
-            if (value.isEmpty) return;
-            print('Scanned: $value');
-            if (value.endsWith('\n') || value.endsWith('\r')) {
-              final barcode = value.trim();
-              if (barcode.isNotEmpty) {
-                _processScan(barcode);
-              }
-              _scanController.clear();
-            } else {
-              Future.delayed(const Duration(milliseconds: 150), () {
-                if (mounted && _scanController.text.isNotEmpty && _scanController.text == value) {
-                  final barcode = _scanController.text.trim();
-                  if (barcode.isNotEmpty) {
-                    _processScan(barcode);
-                  }
-                  _scanController.clear();
-                }
-              });
-            }
-          },
-        ),
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      child: Focus(
+        focusNode: _keyboardFocusNode,
+        autofocus: true,
+        onKeyEvent: _onKeyEvent,
+        child: const SizedBox.shrink(),
       ),
     );
   }
