@@ -66,8 +66,9 @@ class _PickingScreenState extends State<PickingScreen> {
   }
 
   void _processScan(String scannedValue) {
+    final authProvider = context.read<AuthProvider>();
     final provider = context.read<PickingProvider>();
-    final result = provider.processScan(scannedValue);
+    final result = provider.processScan(scannedValue,authProvider.currentUser!.zone??'');
 
     switch (result) {
       case ScanResult.locationVerified:

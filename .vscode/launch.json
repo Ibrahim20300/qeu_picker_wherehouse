@@ -6,12 +6,15 @@
       "request": "launch",
       "type": "dart",
       "args": [
-        "--web-hostname",
-        "0.0.0.0",
-        "--web-port",
-        "8080",
         "--web-browser-flag",
-        "--disable-web-security"
+        "--disable-web-security",
+        "--web-browser-flag",
+        "--user-data-dir=/tmp/flutter-chrome"
+      ],
+      "toolArgs": [
+        "--web-port=3000",
+        "--web-launch-url=http://localhost:3000",
+        "--dart-define=BASE_URL=http://localhost:3000"
       ]
     },
     {

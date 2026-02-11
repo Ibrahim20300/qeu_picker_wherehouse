@@ -105,8 +105,11 @@ class PickingProvider extends ChangeNotifier {
   // --- Core Scan Logic ---
 
   /// Main entry point for scanning. Returns result type for UI feedback.
-  ScanResult processScan(String scannedValue) {
-    if (!_locationVerified) {
+  ScanResult processScan(String scannedValue,String zoneId) {
+  bool skipScan=false;
+
+  skipScan= zoneId=='Z09'||zoneId=='Z011';
+    if (!_locationVerified &&skipScan==false) {
       return verifyLocation(scannedValue);
     } else {
       return scanBarcode(scannedValue);
