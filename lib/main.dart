@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'services/api_endpoints.dart';
 import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 import 'package:qeu_pickera/screens/pciker/picker_home_screen.dart';
@@ -22,6 +24,40 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+Timer? _pickerStatusTimer;
+
+void startPickerStatusTimer() {
+  if (_pickerStatusTimer != null) return;
+  _sendPickerStatus();
+  _pickerStatusTimer = Timer.periodic(
+    const Duration(seconds: 30),
+    (_) => _sendPickerStatus(),
+  );
+}
+
+Future<void> _sendPickerStatus() async {
+  try {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+    final authProvider = ctx.read<AuthProvider>();
+    if (!authProvider.isLoggedIn) return;
+
+    final info = await DeviceInfoPlugin().androidInfo;
+    final manufacturer = info.manufacturer.toLowerCase();
+    String deviceType = '';
+    if (manufacturer.contains('zebra')) {
+      deviceType = 'Z';
+    } else if (manufacturer.contains('honeywell')) {
+      deviceType = 'H';
+    }
+
+    final packageInfo = await PackageInfo.fromPlatform();
+    await authProvider.apiService.post(ApiEndpoints.pickerStatus, body: {
+      'app_version': deviceType + packageInfo.version,
+    });
+  } catch (_) {}
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

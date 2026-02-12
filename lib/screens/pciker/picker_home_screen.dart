@@ -6,6 +6,7 @@ import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/picking_provider.dart';
 import '../../services/api_service.dart';
+import '../../main.dart';
 import '../../widgets/account_screen.dart';
 import 'task_details_screen.dart';
 
@@ -24,6 +25,7 @@ class _PickerScreenState extends State<PickerScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    startPickerStatusTimer();
   }
 
   @override

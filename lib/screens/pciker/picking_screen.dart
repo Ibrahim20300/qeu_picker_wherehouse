@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,6 +8,7 @@ import '../../models/order_model.dart';
 import '../../helpers/snackbar_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/picking_provider.dart';
+import '../../services/zebra_scanner_mixin.dart';
 import 'manual_barcode_screen.dart';
 
 /// شاشة التحضير الاحترافية - منتج واحد في كل مرة
@@ -21,10 +21,7 @@ class PickingScreen extends StatefulWidget {
   State<PickingScreen> createState() => _PickingScreenState();
 }
 
-class _PickingScreenState extends State<PickingScreen> {
-  final _scanController = TextEditingController();
-  final _scanFocusNode = FocusNode();
-
+class _PickingScreenState extends State<PickingScreen> with ZebraScannerMixin {
   @override
   void initState() {
     super.initState();
@@ -33,30 +30,15 @@ class _PickingScreenState extends State<PickingScreen> {
       final authProvider = context.read<AuthProvider>();
       pickingProvider.setApiService(authProvider.apiService);
       pickingProvider.startPicking(widget.order);
-      _setupScanning();
+      initScanner(onScan: _processScan);
     });
-  }
-
-  void _setupScanning() {
-    _scanFocusNode.requestFocus();
-    _scanFocusNode.addListener(_keepFocus);
-  }
-
-  void _keepFocus() {
-    if (!_scanFocusNode.hasFocus && mounted) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && !_scanFocusNode.hasFocus) {
-          _scanFocusNode.requestFocus();
-        }
-      });
-    }
   }
 
   void _processScan(String scannedValue) {
     final authProvider = context.read<AuthProvider>();
     final provider = context.read<PickingProvider>();
     final result = provider.processScan(scannedValue,authProvider.currentUser!.zone??'');
-
+print(scannedValue);
     switch (result) {
       case ScanResult.locationVerified:
         HapticFeedback.mediumImpact();
@@ -107,7 +89,7 @@ class _PickingScreenState extends State<PickingScreen> {
         );
         break;
     }
-    _scanFocusNode.requestFocus();
+    requestScannerFocus();
   }
 
   void _showItemCompleteAnimation(VoidCallback onComplete) {
@@ -219,9 +201,7 @@ class _PickingScreenState extends State<PickingScreen> {
 
   @override
   void dispose() {
-    _scanFocusNode.removeListener(_keepFocus);
-    _scanController.dispose();
-    _scanFocusNode.dispose();
+    disposeScanner();
     super.dispose();
   }
 
@@ -252,8 +232,8 @@ class _PickingScreenState extends State<PickingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(S.scanLocationFirstHint, style: const TextStyle(fontSize: 16)),
-                            SizedBox(height: 8),
+                            // Text(S.scanLocationFirstHint, style: const TextStyle(fontSize: 16)),
+                            // SizedBox(height: 8),
                             _buildLocationSection(item, provider),
                             const SizedBox(height: 16),
                             _buildProductCard(item),
@@ -634,45 +614,7 @@ class _PickingScreenState extends State<PickingScreen> {
     );
   }
 
-  Widget _buildHiddenScanField() {
-    return Positioned(
-      left: -1000,
-      child: SizedBox(
-        width: 1,
-        height: 1,
-        child: TextField(
-          controller: _scanController,
-          focusNode: _scanFocusNode,
-          autofocus: true,
-          keyboardType: TextInputType.none,
-          textDirection: TextDirection.ltr,
-          enableInteractiveSelection: false,
-          showCursor: false,
-          decoration: const InputDecoration(border: InputBorder.none),
-          onChanged: (value) {
-            if (value.isEmpty) return;
-            if (value.endsWith('\n') || value.endsWith('\r')) {
-              final barcode = value.trim();
-              if (barcode.isNotEmpty) {
-                _processScan(barcode);
-              }
-              _scanController.clear();
-            } else {
-              Future.delayed(const Duration(milliseconds: 150), () {
-                if (mounted && _scanController.text.isNotEmpty && _scanController.text == value) {
-                  final barcode = _scanController.text.trim();
-                  if (barcode.isNotEmpty) {
-                    _processScan(barcode);
-                  }
-                  _scanController.clear();
-                }
-              });
-            }
-          },
-        ),
-      ),
-    );
-  }
+  Widget _buildHiddenScanField() => buildScannerField();
 }
 
 /// دايلوج اكتمال المنتج

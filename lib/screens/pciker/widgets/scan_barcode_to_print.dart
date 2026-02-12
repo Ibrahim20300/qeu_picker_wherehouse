@@ -8,6 +8,24 @@ class ScanBarcodeToPrintScreen extends StatelessWidget {
 
   const ScanBarcodeToPrintScreen({super.key, required this.task});
 
+  Widget _buildRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text('$label: ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final orderNumber = task['order_number']?.toString() ?? '';
@@ -22,7 +40,7 @@ class ScanBarcodeToPrintScreen extends StatelessWidget {
         ?? '-';
     final slotTime = task['slot_time']?.toString() ?? '-';
     final totalZone = task['total_zones']?.toString() ?? '-';
-    final barcodeData = orderNumber.isNotEmpty ? '$orderNumber-$zone' : task['id'].toString();
+    final barcodeData = orderNumber.isNotEmpty ? '$orderNumber' : task['id'].toString();
 
     String slotDate = '-';
     final createdAt = task['created_at']?.toString() ?? '';
@@ -53,7 +71,7 @@ class ScanBarcodeToPrintScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     S.isAr
-                        ? 'توجه إلى الطابعة لطباعة هذه البوليصة'
+                        ? 'توجه إلى الطابعة لطباعة البوليصة'
                         : 'Go to the printer to print this label',
                     style: const TextStyle(
                       fontSize: 16,
@@ -88,115 +106,26 @@ class ScanBarcodeToPrintScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Position
-                      if (position.isNotEmpty)
-                        Text(
-                          'P$position',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      const Divider(thickness: 1),
-                      const SizedBox(height: 8),
-
                       // Barcode
                       bw.BarcodeWidget(
                         barcode: bw.Barcode.code128(),
-                        data: barcodeData,
+                        data: barcodeData.replaceAll('#', ''),
                         width: 220,
                         height: 60,
                         drawText: true,
                         style: const TextStyle(fontSize: 10),
                       ),
-                      const Divider(thickness: 0.8),
+                      const Divider(thickness: 1),
                       const SizedBox(height: 4),
 
-                      // District
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('District: ', style: TextStyle(fontSize: 12)),
-                          Text(
-                            district,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                      _buildRow(S.isAr ? 'الترتيب' : 'Position', position.isNotEmpty ? 'P$position' : '-'),
+                      _buildRow(S.isAr ? 'رقم الطلب' : 'Order', orderNumber.replaceAll('#', ' ')),
+                      _buildRow(S.isAr ? 'الحي' : 'District', district),
+                      _buildRow(S.isAr ? 'الوقت' : 'Time', slotTime),
+                      _buildRow(S.isAr ? 'التاريخ' : 'Date', slotDate),
+                      _buildRow(S.isAr ? 'المنطقة' : 'Zone', zone),
+                      _buildRow(S.isAr ? 'عدد المناطق' : 'Total Zones', totalZone),
 
-                      // Time & Date
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text('Time', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                                const SizedBox(height: 2),
-                                Text(slotTime, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                          Container(width: 1, height: 35, color: Colors.grey.shade400),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text('Date', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                                const SizedBox(height: 2),
-                                Text(slotDate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Zone & Total Zones
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade400),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text('From Zone', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                                  Text(zone, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade400),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text('Total Zones', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                                  Text(totalZone, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Order Number
-                      Text(
-                        orderNumber.replaceAll('#', ' '),
-                        style: const TextStyle(fontSize: 13),
-                      ),
                       const SizedBox(height: 8),
                       const Divider(thickness: 0.5),
                       Builder(builder: (_) {
