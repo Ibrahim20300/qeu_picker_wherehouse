@@ -1,5 +1,5 @@
 class ApiEndpoints {
-  static bool isProduction = false;
+  static bool isProduction = true;
 
   static const String _productionUrl = 'https://api.qeu.info/v1';
   static const String _devUrl = 'https://api.qeu.app/v1';
