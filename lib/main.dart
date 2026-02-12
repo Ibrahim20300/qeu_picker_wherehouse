@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'constants/app_colors.dart';
 import 'package:qeu_pickera/screens/pciker/picker_home_screen.dart';
@@ -19,8 +20,12 @@ import 'screens/login_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://wopknlncigglzzxbkcxy.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcGtubG5jaWdnbHp6eGJrY3h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4OTI4OTIsImV4cCI6MjA4NjQ2ODg5Mn0.WEnKXqPaz3a91tdO0Uqm_r2L80_KuB29oLn_a9RUKS4',
+  );
   WakelockPlus.enable();
   runApp(const MyApp());
 }
