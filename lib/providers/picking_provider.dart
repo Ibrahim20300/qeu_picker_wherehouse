@@ -106,8 +106,8 @@ class PickingProvider extends ChangeNotifier {
 
   /// Main entry point for scanning. Returns result type for UI feedback.
   ScanResult processScan(String scannedValue,String zoneId) {
-  bool skipScan=false;
-  skipScan= zoneId=='Z09'||zoneId=='Z011';
+  bool skipScan=true;
+  // skipScan= zoneId=='Z09'||zoneId=='Z011';
     if (!_locationVerified &&skipScan==false) {
       return verifyLocation(scannedValue);
     } else {
