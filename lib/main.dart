@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 import 'package:qeu_pickera/screens/pciker/picker_home_screen.dart';
 import 'package:qeu_pickera/screens/qc/qc_home_screen.dart';
@@ -38,17 +41,133 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  String _appVersion = '';
+  Timer? _settingsTimer;
+  bool _isBlocked = false;
+  bool _isDialogShowing = false;
+
   @override
   void initState() {
     super.initState();
     _initAppVersion();
+    _settingsTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _checkRemoteSettings(),
+    );
   }
 
-  String _appVersion = '';
+  @override
+  void dispose() {
+    _settingsTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _initAppVersion() async {
     final info = await PackageInfo.fromPlatform();
     setState(() => _appVersion = info.version);
+  }
+
+  Future<void> _checkRemoteSettings() async {
+    if (_isBlocked || !mounted) return;
+    try {
+      final settings = await SupabaseService.fetchAppSettings();
+      if (!mounted) return;
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null) return;
+
+      // Check maintenance
+      if (settings['maintenance_mode'] == 'true') {
+        _isBlocked = true;
+        _showBlockingDialog(
+          icon: Icons.construction,
+          iconColor: Colors.orange,
+          title: 'صيانة',
+          message: settings['maintenance_message']?.isNotEmpty == true
+              ? settings['maintenance_message']!
+              : 'التطبيق تحت الصيانة حالياً، يرجى المحاولة لاحقاً.',
+        );
+        return;
+      }
+
+      // Check min version
+      final minVersion = settings['min_version'];
+      if (minVersion != null && minVersion.isNotEmpty && _appVersion.isNotEmpty) {
+        if (_isVersionLower(_appVersion, minVersion)) {
+          _isBlocked = true;
+          _showBlockingDialog(
+            icon: Icons.system_update,
+            iconColor: AppColors.primary,
+            title: 'تحديث مطلوب',
+            message: 'يوجد إصدار جديد من التطبيق. يرجى التحديث للاستمرار.',
+            apkUrl: settings['apk_url'] ?? '',
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
+  bool _isVersionLower(String current, String minimum) {
+    final cur = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final min = minimum.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    for (int i = 0; i < 3; i++) {
+      final c = i < cur.length ? cur[i] : 0;
+      final m = i < min.length ? min[i] : 0;
+      if (c < m) return true;
+      if (c > m) return false;
+    }
+    return false;
+  }
+
+  void _showBlockingDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+    String apkUrl = '',
+  }) {
+    if (_isDialogShowing) return;
+    _isDialogShowing = true;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 28),
+              const SizedBox(width: 8),
+              Text(title),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            if (apkUrl.isNotEmpty)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(apkUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.download),
+                  label: const Text('تحميل التحديث'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
