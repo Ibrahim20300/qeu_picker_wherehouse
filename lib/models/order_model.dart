@@ -150,7 +150,9 @@ class OrderItem {
       requiredQuantity: json['requiredQuantity'],
       pickedQuantity: json['pickedQuantity'] ?? 0,
       isPicked: json['isPicked'] ?? false,
-      imageUrl: json['imageUrl'],
+      imageUrl: json['imageUrl'] != null
+          ? ImageHelper.buildImageUrl(json['imageUrl'].toString(), height: 600, quality: 90)
+          : null,
       unitName: json['unitName'],
       unitValue: json['unitValue'] ?? 1,
       zone: json['zone'],

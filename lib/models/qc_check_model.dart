@@ -1,4 +1,5 @@
 import '../l10n/app_localizations.dart';
+import 'order_model.dart';
 
 class QCZoneTask {
   final String taskId;
@@ -10,6 +11,7 @@ class QCZoneTask {
   final int exceptionItems;
   final int packageCount;
   final DateTime? completedAt;
+  final List<OrderItem> items;
 
   QCZoneTask({
     required this.taskId,
@@ -21,9 +23,14 @@ class QCZoneTask {
     required this.exceptionItems,
     required this.packageCount,
     this.completedAt,
+    this.items = const [],
   });
 
   factory QCZoneTask.fromJson(Map<String, dynamic> json) {
+    final itemsList = (json['items'] as List<dynamic>? ?? [])
+        .map((item) => OrderItem.fromTaskJson(item as Map<String, dynamic>))
+        .toList();
+
     return QCZoneTask(
       taskId: json['task_id']?.toString() ?? '',
       zoneName: json['zone_name']?.toString() ?? '',
@@ -34,6 +41,7 @@ class QCZoneTask {
       exceptionItems: json['exception_items'] ?? 0,
       packageCount: json['package_count'] ?? 0,
       completedAt: DateTime.tryParse(json['completed_at']?.toString() ?? ''),
+      items: itemsList,
     );
   }
 
@@ -48,6 +56,7 @@ class QCZoneTask {
       'exception_items': exceptionItems,
       'package_count': packageCount,
       'completed_at': completedAt?.toIso8601String(),
+      'items': items.map((item) => item.toJson()).toList(),
     };
   }
 }

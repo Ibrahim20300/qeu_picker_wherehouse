@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../models/qc_check_model.dart';
+import '../../models/order_model.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/qc_provider.dart';
@@ -912,6 +914,25 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
               ],
             ),
 
+            // View products button
+            if (zone.items.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showItemsBottomSheet(zone),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: Text('${S.productsLabel} (${zone.items.length})'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    side: const BorderSide(color: Colors.blue),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 12),
 
             // Action buttons row
@@ -1152,6 +1173,223 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showItemsBottomSheet(QCZoneTask zone) {
+    _focusTimer?.cancel();
+    _focusTimer = null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        zone.zoneCode,
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${S.productsLabel} (${zone.items.length})',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Items list
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: zone.items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) => _buildItemCard(zone.items[i]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _setupScanning();
+    });
+  }
+
+  Widget _buildItemCard(OrderItem item) {
+    final isOutOfStock = item.status == 'ITEM_OUT_OF_STOCK';
+    final isPicked = item.status == 'ITEM_PICKED';
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isOutOfStock
+            ? AppColors.error.withValues(alpha: 0.04)
+            : Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOutOfStock
+              ? AppColors.error.withValues(alpha: 0.3)
+              : Colors.grey.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Product image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: item.imageUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: item.imageUrl!,
+                    width: 56,
+                    height: 56,
+                
+                    placeholder: (_, _) => Container(
+                      width: 56,
+                      height: 56,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    ),
+                    errorWidget: (_, _, _) => Container(
+                      width: 56,
+                      height: 56,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    width: 56,
+                    height: 56,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          // Product details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.productName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 13, color: Colors.grey[500]),
+                    const SizedBox(width: 3),
+                    Text(
+                      item.primaryLocation,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    // Quantity
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isPicked
+                            ? AppColors.success.withValues(alpha: 0.1)
+                            : AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${item.pickedQuantity}/${item.requiredQuantity} ${item.unitName ?? ''}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isPicked ? AppColors.success : AppColors.error,
+                        ),
+                      ),
+                    ),
+                    if (isOutOfStock) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'غير متوفر',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    // Price
+                    Text(
+                      '${item.unitPrice} ر.س',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
