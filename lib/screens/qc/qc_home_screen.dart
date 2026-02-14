@@ -16,7 +16,7 @@ class QCHomeScreen extends StatefulWidget {
   @override
   State<QCHomeScreen> createState() => _QCHomeScreenState();
 }
-
+ 
 class _QCHomeScreenState extends State<QCHomeScreen> {
   final _scanController = TextEditingController();
   final _scanFocusNode = FocusNode();
