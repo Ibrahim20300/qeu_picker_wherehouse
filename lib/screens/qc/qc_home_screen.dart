@@ -31,7 +31,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
   void initState() {
     super.initState();
     _loadChecks();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
       _loadChecks();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
