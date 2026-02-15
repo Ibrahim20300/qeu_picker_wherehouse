@@ -104,7 +104,7 @@ class InvoiceService {
               pw.Center(
                 child: pw.Text(
                   position.isNotEmpty ? 'P${position}' : '',
-                  style: pw.TextStyle(font: fontBold, fontSize: 45),
+                  style: pw.TextStyle(font: fontBold, fontSize: 60),
                 ),
               ),
               pw.SizedBox(height: 3),
@@ -243,7 +243,7 @@ class InvoiceService {
               pw.SizedBox(height: 20),
          pw.Center(child:pw.Text(
                 '${orderNumber.replaceAll('#', ' ')}',
-                style: pw.TextStyle(font: font, fontSize: 13),
+                style: pw.TextStyle(font: font, fontSize: 15),
               ), ),     
               pw.Spacer(),
 

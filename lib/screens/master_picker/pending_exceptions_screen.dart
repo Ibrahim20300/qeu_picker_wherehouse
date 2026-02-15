@@ -19,10 +19,11 @@ class _PendingExceptionsScreenState extends State<PendingExceptionsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExceptions();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _loadExceptions(hideLoad: true);
-    });
+    // _loadExceptions();
+    
+    // _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    //   _loadExceptions(hideLoad: true);
+    // });
   }
 
   @override

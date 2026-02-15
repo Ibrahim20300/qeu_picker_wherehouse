@@ -26,14 +26,24 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTasks();
-    _loadExceptions();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+  
+
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadTasks(hideLoad: true);
       _loadExceptions(hideLoad: true);
     });
+
+   
     _barcodeFocusNode.addListener(_keepFocus);
+
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+             _loadTasks();
+              _loadExceptions(hideLoad: true);
+      // _setupScanning();
+    });
   }
+  
 
   void _keepFocus() {
     if (!_barcodeFocusNode.hasFocus && mounted) {
@@ -370,11 +380,16 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
                   ),
                 ] else
                   const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.print, color: AppColors.primary),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+                ElevatedButton.icon(
                   onPressed: () => InvoiceService.printFromTask(task),
+                  icon: const Icon(Icons.print, size: 20),
+                  label: Text(S.print_),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
               ],
             ),

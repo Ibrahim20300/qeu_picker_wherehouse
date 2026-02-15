@@ -30,11 +30,12 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadChecks();
+
     _refreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
       _loadChecks();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadChecks();
       // _setupScanning();
     });
   }
@@ -164,6 +165,10 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadChecks,
+          ),
+          IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () {
               Navigator.push(
@@ -174,10 +179,22 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
           ),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
-          _buildBody(),
-          // _buildHiddenScanField(),
+          if (context.watch<QCProvider>().checksLoading)
+            const LinearProgressIndicator(
+              backgroundColor: Colors.transparent,
+              color: AppColors.primary,
+              minHeight: 3,
+            ),
+          Expanded(
+            child: Stack(
+              children: [
+                _buildBody(),
+                // _buildHiddenScanField(),
+              ],
+            ),
+          ),
         ],
       ),
     ),

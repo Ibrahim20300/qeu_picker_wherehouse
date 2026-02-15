@@ -347,6 +347,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
                           ),
                         ],
                       ),
+                      Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
