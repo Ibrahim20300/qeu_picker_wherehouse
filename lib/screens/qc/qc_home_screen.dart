@@ -415,7 +415,8 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
               Row(
                 children: [
                   Container(
-                    width: 40,
+                    // width: 40,
+                    padding: EdgeInsets.symmetric(horizontal: 10),
                     height: 40,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1),
