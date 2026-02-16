@@ -30,6 +30,7 @@ class _PickingScreenState extends State<PickingScreen> with ZebraScannerMixin {
       final authProvider = context.read<AuthProvider>();
       pickingProvider.setApiService(authProvider.apiService);
       pickingProvider.startPicking(widget.order);
+     
       initScanner(onScan: _processScan);
     });
   }
@@ -38,7 +39,6 @@ class _PickingScreenState extends State<PickingScreen> with ZebraScannerMixin {
     final authProvider = context.read<AuthProvider>();
     final provider = context.read<PickingProvider>();
     final result = provider.processScan(scannedValue,authProvider.currentUser!.zone??'');
-print(scannedValue);
     switch (result) {
       case ScanResult.locationVerified:
         HapticFeedback.mediumImpact();
@@ -342,6 +342,15 @@ print(scannedValue);
                     case 'manual':
                       _openManualBarcode();
                       break;
+                    case 'toggle_scanner':
+                      if (deviceType == ScannerDeviceType.honeywell) {
+                        switchToZebraMode();
+                        SnackbarHelper.success(context, S.zebraModeActivated, floating: true);
+                      } else {
+                        switchToHoneywellMode();
+                        SnackbarHelper.success(context, S.honeywellModeActivated, floating: true);
+                      }
+                      break;
                   }
                 },
                 itemBuilder: (context) => [
@@ -365,6 +374,24 @@ print(scannedValue);
                       ],
                     ),
                   ),
+                  if (realDeviceType == ScannerDeviceType.honeywell)
+                    PopupMenuItem(
+                      value: 'toggle_scanner',
+                      child: Row(
+                        children: [
+                          Icon(
+                            deviceType == ScannerDeviceType.honeywell
+                                ? Icons.qr_code_scanner
+                                : Icons.settings_input_antenna,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(deviceType == ScannerDeviceType.honeywell
+                              ? S.zebraModeSwitch
+                              : S.honeywellModeSwitch),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ],

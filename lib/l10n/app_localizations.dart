@@ -79,6 +79,10 @@ class S {
   static String get goBack => _t('العودة', 'Go Back');
   static String get manualBarcodeEntry => _t('إدخال باركود يدوي', 'Manual Barcode Entry');
   static String get reportIssue => _t('ابلاغ عن مشكلة', 'Report Issue');
+  static String get zebraModeSwitch => _t('تفعيل وضع Zebra', 'Switch to Zebra Mode');
+  static String get zebraModeActivated => _t('تم تفعيل وضع Zebra', 'Zebra mode activated');
+  static String get honeywellModeSwitch => _t('تفعيل وضع Honeywell', 'Switch to Honeywell Mode');
+  static String get honeywellModeActivated => _t('تم تفعيل وضع Honeywell', 'Honeywell mode activated');
   static String get scanLocationFirstHint => _t('امسح الموقع أولا', 'Scan location first');
   static String get picked => _t('الملتقط', 'Picked');
   static String get remaining => _t('المتبقي', 'Remaining');

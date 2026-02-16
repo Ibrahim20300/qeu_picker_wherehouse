@@ -111,6 +111,7 @@ class PickingProvider extends ChangeNotifier {
     if (!_locationVerified &&skipScan==false) {
       return verifyLocation(scannedValue);
     } else {
+
       return scanBarcode(scannedValue);
     }
   }

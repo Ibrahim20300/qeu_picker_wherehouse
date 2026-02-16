@@ -37,6 +37,7 @@ void startPickerStatusTimer() {
 }
 
 Future<void> _sendPickerStatus() async {
+  print('object');
   try {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;

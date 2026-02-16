@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const _scannerModeKey = 'scanner_mode_override';
 
 /// أنواع أجهزة السكان المدعومة
 enum ScannerDeviceType { zebra, honeywell, other }
@@ -18,13 +21,15 @@ enum ScannerDeviceType { zebra, honeywell, other }
 /// - [buildScannerField] داخل Stack في build
 mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
   // مشترك
-  final scanFocusNode = FocusNode();
+  FocusNode scanFocusNode = FocusNode();
   Timer? _focusTimer;
   ScannerDeviceType _deviceType = ScannerDeviceType.other;
+  ScannerDeviceType _realDeviceType = ScannerDeviceType.other;
+  bool _forcedZebraMode = false;
   late void Function(String barcode) _onScan;
 
   // Zebra / Other - TextField approach
-  final scanController = TextEditingController();
+  TextEditingController scanController = TextEditingController();
   Timer? _debounceTimer;
 
   // Honeywell - KeyEvent buffer approach
@@ -32,6 +37,7 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
   Timer? _scanTimeout;
 
   ScannerDeviceType get deviceType => _deviceType;
+  ScannerDeviceType get realDeviceType => _realDeviceType;
   bool get isHardwareScanner =>
       _deviceType == ScannerDeviceType.zebra ||
       _deviceType == ScannerDeviceType.honeywell;
@@ -47,10 +53,21 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
       final info = await DeviceInfoPlugin().androidInfo;
       final manufacturer = info.manufacturer.toLowerCase();
       if (manufacturer.contains('zebra')) {
+        _realDeviceType = ScannerDeviceType.zebra;
         _deviceType = ScannerDeviceType.zebra;
       } else if (manufacturer.contains('honeywell')) {
-        _deviceType = ScannerDeviceType.honeywell;
+        _realDeviceType = ScannerDeviceType.honeywell;
+        // تحقق من الخيار المحفوظ فقط لأجهزة Honeywell
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString(_scannerModeKey);
+        if (saved == 'zebra') {
+          _deviceType = ScannerDeviceType.zebra;
+          _forcedZebraMode = true;
+        } else {
+          _deviceType = ScannerDeviceType.honeywell;
+        }
       } else {
+        _realDeviceType = ScannerDeviceType.other;
         _deviceType = ScannerDeviceType.other;
       }
     } catch (_) {
@@ -74,6 +91,7 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
         SystemChannels.textInput.invokeMethod('TextInput.hide');
       });
     } else {
+      
       _requestFocus();
       SystemChannels.textInput.invokeMethod('TextInput.hide');
     }
@@ -98,10 +116,11 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
 
   // --- Honeywell: KeyEvent buffer ---
   KeyEventResult handleKeyEvent(FocusNode node, KeyEvent event) {
+    print(event);
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     final key = event.logicalKey;
-
+print(key);
     // Enter = end of scan
     if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
       _flushScanBuffer();
@@ -137,13 +156,75 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
 
   void requestScannerFocus() => _requestFocus();
 
+  /// تبديل إلى وضع Zebra (TextField) - مفيد إذا كان Honeywell لا يعمل بوضع KeyEvent
+  void switchToZebraMode() {
+    // إيقاف كل شيء قديم
+    _focusTimer?.cancel();
+    _focusTimer = null;
+    _scanTimeout?.cancel();
+    _debounceTimer?.cancel();
+    _scanBuffer = '';
+
+    // تحرير القديم
+    scanFocusNode.dispose();
+    scanController.dispose();
+
+    // إنشاء جديد
+    scanFocusNode = FocusNode();
+    scanController = TextEditingController();
+
+    _deviceType = ScannerDeviceType.zebra;
+    _forcedZebraMode = true;
+    scanController.addListener(_onTextChanged);
+    SharedPreferences.getInstance().then((p) => p.setString(_scannerModeKey, 'zebra'));
+
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _requestFocus();
+        SystemChannels.textInput.invokeMethod('TextInput.hide');
+        _focusTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+          SystemChannels.textInput.invokeMethod('TextInput.hide');
+          _requestFocus();
+          SystemChannels.textInput.invokeMethod('TextInput.hide');
+        });
+      });
+    }
+  }
+
+  /// تبديل إلى وضع Honeywell (Focus + KeyEvent)
+  void switchToHoneywellMode() {
+    _focusTimer?.cancel();
+    _focusTimer = null;
+    _debounceTimer?.cancel();
+    _scanBuffer = '';
+
+    scanFocusNode.dispose();
+    scanController.dispose();
+
+    scanFocusNode = FocusNode();
+    scanController = TextEditingController();
+
+    _deviceType = ScannerDeviceType.honeywell;
+    _forcedZebraMode = false;
+    SharedPreferences.getInstance().then((p) => p.setString(_scannerModeKey, 'honeywell'));
+
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _requestFocus();
+        SystemChannels.textInput.invokeMethod('TextInput.hide');
+      });
+    }
+  }
+
   void pauseScanner() {
     _focusTimer?.cancel();
     _focusTimer = null;
   }
 
   void resumeScanner() {
-    if (_deviceType == ScannerDeviceType.zebra && _focusTimer == null) {
+    if (_deviceType == ScannerDeviceType.zebra && _focusTimer == null && !_forcedZebraMode) {
       _focusTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
         SystemChannels.textInput.invokeMethod('TextInput.hide');
         _requestFocus();
@@ -181,18 +262,22 @@ mixin ZebraScannerMixin<T extends StatefulWidget> on State<T> {
 
     // Zebra / Other: Hidden TextField
     return Positioned(
-      left: -1000,
-      child: SizedBox(
-        width: 1,
-        height: 1,
-        child: TextField(
-          controller: scanController,
-          focusNode: scanFocusNode,
-          autofocus: true,
-          textDirection: TextDirection.ltr,
-          enableInteractiveSelection: false,
-          showCursor: false,
-          decoration: const InputDecoration(border: InputBorder.none),
+      left: 0,
+      top: 0,
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          width: 1,
+          height: 1,
+          child: TextField(
+            controller: scanController,
+            focusNode: scanFocusNode,
+            autofocus: true,
+            textDirection: TextDirection.ltr,
+            enableInteractiveSelection: false,
+            showCursor: false,
+            decoration: const InputDecoration(border: InputBorder.none),
+          ),
         ),
       ),
     );
