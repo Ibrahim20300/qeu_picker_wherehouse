@@ -9,6 +9,7 @@ import '../../models/order_model.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/qc_provider.dart';
+import '../../services/api_endpoints.dart';
 
 enum ZoneStatus { none, complete, problem }
 
@@ -23,6 +24,7 @@ class QCCheckDetailsScreen extends StatefulWidget {
 }
 
 class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
+  late QCCheckModel _check;
   late List<ZoneStatus> _zoneStatuses;
   late List<String?> _zoneRejectionReasons;
 
@@ -37,17 +39,44 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _zoneStatuses = List.filled(widget.check.zoneTasks.length, ZoneStatus.none);
-    _zoneRejectionReasons = List.filled(widget.check.zoneTasks.length, null);
-    _zoneKeys.addAll(List.generate(widget.check.zoneTasks.length, (_) => GlobalKey()));
+    _check = widget.check;
+    _zoneStatuses = List.filled(_check.zoneTasks.length, ZoneStatus.none);
+    _zoneRejectionReasons = List.filled(_check.zoneTasks.length, null);
+    _zoneKeys.addAll(List.generate(_check.zoneTasks.length, (_) => GlobalKey()));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupScanning();
-      // Handle initial zone code from barcode scan
+      _fetchCheckDetails();
       if (widget.initialZoneCode != null) {
         _handleZoneScan(widget.initialZoneCode!);
       }
     });
+  }
+
+  Future<void> _fetchCheckDetails() async {
+    final apiService = context.read<AuthProvider>().apiService;
+    try {
+      final response = await apiService.get(ApiEndpoints.qcCheckDetails(_check.id));
+      final body = apiService.handleResponse(response);
+      final data = body['check'] as Map<String, dynamic>?
+          ?? body['data'] as Map<String, dynamic>?
+          ?? body;
+      final updated = QCCheckModel.fromJson(data);
+      if (mounted) {
+        setState(() {
+          _check = updated;
+          // Preserve zone statuses for existing zones, extend for new ones
+          if (updated.zoneTasks.length != _zoneStatuses.length) {
+            _zoneStatuses = List.filled(updated.zoneTasks.length, ZoneStatus.none);
+            _zoneRejectionReasons = List.filled(updated.zoneTasks.length, null);
+            _zoneKeys.clear();
+            _zoneKeys.addAll(List.generate(updated.zoneTasks.length, (_) => GlobalKey()));
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching check details: $e');
+    }
   }
 
   void _setupScanning() {
@@ -90,7 +119,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
 
     // Verify order number matches this check
     if (orderPart != null) {
-      final checkOrder = widget.check.orderNumber;
+      final checkOrder = _check.orderNumber;
       if (checkOrder != orderPart && !checkOrder.contains(orderPart) && !orderPart.contains(checkOrder)) {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,7 +139,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
 
   void _handleZoneScan(String zoneCode) {
     final code = zoneCode.toUpperCase().trim();
-    final index = widget.check.zoneTasks.indexWhere((z) {
+    final index = _check.zoneTasks.indexWhere((z) {
       final zc = z.zoneCode.toUpperCase();
       // Exact match: Z01 == Z01
       if (zc == code) return true;
@@ -147,7 +176,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
   }
 
   void _showZoneScanDialog(int index) {
-    final zone = widget.check.zoneTasks[index];
+    final zone = _check.zoneTasks[index];
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -279,7 +308,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final check = widget.check;
+    final check = _check;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -1119,7 +1148,7 @@ class _QCCheckDetailsScreenState extends State<QCCheckDetailsScreen> {
   void _verifyAndProceed(BuildContext ctx, String enteredOrder, int index) {
     if (enteredOrder.isEmpty) return;
 
-    final checkOrder = widget.check.orderNumber.replaceAll('#', '');
+    final checkOrder = _check.orderNumber.replaceAll('#', '');
     final lastSix = checkOrder.length >= 6 ? checkOrder.substring(checkOrder.length - 6) : checkOrder;
     if (enteredOrder == lastSix) {
       Navigator.pop(ctx);

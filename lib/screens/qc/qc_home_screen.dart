@@ -126,10 +126,13 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
 
     if (success) {
       qcProvider.loadChecks();
+      await qcProvider.loadCheckDetails(check.id);
+      if (!mounted) return;
+      final fullCheck = qcProvider.checkDetails ?? check;
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => QCCheckDetailsScreen(check: check, initialZoneCode: initialZoneCode),
+          builder: (_) => QCCheckDetailsScreen(check: fullCheck, initialZoneCode: initialZoneCode),
         ),
       );
     } else {

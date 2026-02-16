@@ -46,7 +46,7 @@ class ApiService {
   Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    if (!kIsWeb) 'Accept-Language': _language,
+'Accept-Language': _language,
     if (!kIsWeb && _appVersion.isNotEmpty) 'X-Qeu-App-Version': _appVersion,
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
@@ -82,7 +82,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          if (!kIsWeb) 'Accept-Language': _language,
+        'Accept-Language': _language,
           if (!kIsWeb && _appVersion.isNotEmpty) 'X-Qeu-App-Version': _appVersion,
         },
         body: jsonEncode({'refresh_token': _refreshToken}),
