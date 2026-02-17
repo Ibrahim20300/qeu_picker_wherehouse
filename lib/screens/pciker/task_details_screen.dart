@@ -402,7 +402,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                   imageUrl: item.imageUrl!,
                   width: 70,
                   height: 70,
-                  fit: BoxFit.cover,
                   placeholder: (_, __) => Container(
                     width: 70,
                     height: 70,

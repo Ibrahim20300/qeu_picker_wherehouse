@@ -257,6 +257,10 @@ class _OrdersTabState extends State<_OrdersTab> {
       child: InkWell(
         onTap: () {
           final taskId = task['id']?.toString() ?? '';
+
+        if(status=="TASK_PENDING"){
+          return ;
+        }
           if (taskId.isEmpty) return;
           Navigator.push(
             context,
@@ -293,7 +297,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                           children: [
                             Expanded(
                               child: Text(
-                                S.orderNum(orderNumber.length > 8 ? orderNumber.substring(0, 8) : orderNumber),
+                                S.orderNum(orderNumber.length > 6 ? orderNumber.substring(orderNumber.length - 6) : orderNumber),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -334,31 +338,31 @@ class _OrdersTabState extends State<_OrdersTab> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.inventory_2_outlined, size: 16, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$pickedItems / $totalItems ${S.product}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (totalItems > 0)
-                    SizedBox(
-                      width: 100,
-                      child: LinearProgressIndicator(
-                        value: totalItems > 0 ? pickedItems / totalItems : 0,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          pickedItems == totalItems ? AppColors.success : AppColors.primary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              // Row(
+              //   children: [
+              //     Icon(Icons.inventory_2_outlined, size: 16, color: Colors.grey[500]),
+              //     const SizedBox(width: 4),
+              //     Text(
+              //       '$pickedItems / $totalItems ${S.product}',
+              //       style: TextStyle(
+              //         color: Colors.grey[600],
+              //         fontSize: 13,
+              //       ),
+              //     ),
+              //     const Spacer(),
+              //     if (totalItems > 0)
+              //       SizedBox(
+              //         width: 100,
+              //         child: LinearProgressIndicator(
+              //           value: totalItems > 0 ? pickedItems / totalItems : 0,
+              //           backgroundColor: Colors.grey[200],
+              //           valueColor: AlwaysStoppedAnimation<Color>(
+              //             pickedItems == totalItems ? AppColors.success : AppColors.primary,
+              //           ),
+              //         ),
+              //       ),
+              //   ],
+              // ),
               if (status == 'TASK_PENDING' || status == 'TASK_ASSIGNED')
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

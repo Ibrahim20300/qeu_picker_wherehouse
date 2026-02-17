@@ -401,12 +401,12 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => QCCheckDetailsScreen(check: check),
-            ),
-          );
+          // Navigator.push(
+          //   context,
+          //   MaterialPageRoute(
+          //     builder: (_) => QCCheckDetailsScreen(check: check),
+          //   ),
+          // );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
