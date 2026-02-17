@@ -78,6 +78,8 @@ class _OrdersTabState extends State<_OrdersTab> {
   bool _isLoading = true;
   String? _error;
   Timer? _refreshTimer;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -91,7 +93,18 @@ class _OrdersTabState extends State<_OrdersTab> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<dynamic> get _filteredTasks {
+    if (_searchQuery.isEmpty) return _tasks;
+    return _tasks.where((task) {
+      final orderNumber = task['order_number']?.toString() ?? '';
+      final customerName = task['customer_name']?.toString() ?? '';
+      return orderNumber.contains(_searchQuery) ||
+          customerName.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
   }
 
   Future<void> _startPicking(Map<String, dynamic> task) async {
@@ -180,15 +193,71 @@ class _OrdersTabState extends State<_OrdersTab> {
       return _buildEmptyState();
     }
 
+    final tasks = _filteredTasks;
+
     return RefreshIndicator(
       onRefresh: _loadTasks,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _tasks.length,
-        itemBuilder: (context, index) {
-          final task = _tasks[index] as Map<String, dynamic>;
-          return _buildTaskCard(task);
-        },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: S.search,
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    ),
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${S.remaining}: ${tasks.length}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: tasks.isEmpty
+                ? Center(child: Text(S.noOrders, style: TextStyle(color: Colors.grey[600])))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index] as Map<String, dynamic>;
+                      return _buildTaskCard(task);
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

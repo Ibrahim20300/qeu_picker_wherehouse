@@ -1,288 +1,196 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/order_model.dart';
-import '../../services/invoice_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/api_endpoints.dart';
 
-class QCOrderDetailsScreen extends StatefulWidget {
-  final OrderModel order;
-
-  const QCOrderDetailsScreen({super.key, required this.order});
+class QCOrderSearchScreen extends StatefulWidget {
+  const QCOrderSearchScreen({super.key});
 
   @override
-  State<QCOrderDetailsScreen> createState() => _QCOrderDetailsScreenState();
+  State<QCOrderSearchScreen> createState() => _QCOrderSearchScreenState();
 }
 
-class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
-  final Map<String, bool> _checkedItems = {};
-  final Map<String, String> _itemNotes = {};
+class _QCOrderSearchScreenState extends State<QCOrderSearchScreen> {
+  final _searchController = TextEditingController();
+  Map<String, dynamic>? _orderData;
+  List<dynamic> _zoneTasks = [];
+  bool _isLoading = false;
+  String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    // تهيئة حالة الفحص لكل منتج
-    for (var item in widget.order.items) {
-      _checkedItems[item.productId] = false;
-      _itemNotes[item.productId] = '';
-    }
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  bool get allItemsChecked =>
-      _checkedItems.values.every((checked) => checked);
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
 
-  int get checkedCount =>
-      _checkedItems.values.where((checked) => checked).length;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _orderData = null;
+      _zoneTasks = [];
+    });
 
-  void _approveOrder() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: AppColors.success),
-            const SizedBox(width: 8),
-            Text(S.confirmApproval),
-          ],
-        ),
-        content: Text(S.approveOrderQuestion),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(S.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showSuccessAndPrint(S.orderApproved);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(S.approve),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _rejectOrder() {
-    final notesController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.cancel, color: AppColors.error),
-            const SizedBox(width: 8),
-            Text(S.rejectOrder),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(S.enterRejectionReason),
-            const SizedBox(height: 12),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: S.rejectionReasonHint,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(S.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(S.orderRejected),
-                  backgroundColor: AppColors.error,
-                ),
-              );
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(S.reject),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessAndPrint(String message) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.success,
-      ),
-    );
-
-    // طباعة الملصق
     try {
-      await InvoiceService.generateAndPrintInvoice(widget.order);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.printError),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+      final apiService = context.read<AuthProvider>().apiService;
+      final response = await apiService.get(ApiEndpoints.qcOrderDetails(query));
+      final body = apiService.handleResponse(response);
 
-    if (mounted) {
-      Navigator.pop(context);
+      setState(() {
+        _orderData = body;
+        _zoneTasks = List.from(body['zone_tasks'] as List<dynamic>? ?? [])
+          ..sort((a, b) => (a['zone_code']?.toString() ?? '').compareTo(b['zone_code']?.toString() ?? ''));
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
+
+  int get _totalItems => _zoneTasks.fold(0, (sum, zone) {
+    final items = (zone as Map<String, dynamic>)['items'] as List<dynamic>? ?? [];
+    return sum + items.length;
+  });
+
+  int get _pickedItems => _zoneTasks.fold(0, (sum, zone) {
+    final z = zone as Map<String, dynamic>;
+    return sum + (z['picked_items'] as int? ?? 0);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(S.checkOrderNum(widget.order.orderNumber.substring(0, 8))),
-        backgroundColor: AppColors.pending,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: () => InvoiceService.generateAndPrintInvoice(widget.order),
-            tooltip: S.print_,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Order Info Header
-          _buildOrderHeader(),
-
-          // Progress Indicator
-          _buildProgressBar(),
-
-          // Items List
-          Expanded(
-            child: ListView.builder(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(S.orderDetails),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Column(
+          children: [
+            Padding(
               padding: const EdgeInsets.all(16),
-              itemCount: widget.order.items.length,
-              itemBuilder: (context, index) => _buildItemCard(
-                widget.order.items[index],
-                index + 1,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      textDirection: TextDirection.ltr,
+                      keyboardType: TextInputType.number,
+                      maxLength: 19,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(19),
+                      ],
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: S.orderNumber,
+                        hintTextDirection: TextDirection.rtl,
+                        prefixIcon: const Icon(Icons.receipt_long),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onSubmitted: (_) => _search(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _search,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.search),
+                  ),
+                ],
               ),
             ),
-          ),
-
-          // Action Buttons
-          _buildActionButtons(),
-        ],
+            Expanded(child: _buildResults()),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildOrderHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.pendingWithOpacity(0.1),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildHeaderInfo('Position', widget.order.position ?? '-', Icons.location_on),
-              _buildHeaderInfo('Zone', '${widget.order.zone}/${widget.order.totalZone}', Icons.map),
-              _buildHeaderInfo(S.district, widget.order.neighborhood ?? '-', Icons.home),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildHeaderInfo(S.time, widget.order.slotTime ?? '-', Icons.schedule),
-              _buildHeaderInfo(S.date, widget.order.slotDate ?? '-', Icons.calendar_today),
-              _buildHeaderInfo(S.bags, '${widget.order.bagsCount}', Icons.shopping_bag),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildResults() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  Widget _buildHeaderInfo(String label, String value, IconData icon) {
-    return Column(
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_orderData == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              S.search,
+              style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
-        Icon(icon, color: AppColors.pending, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        _buildOrderInfo(),
+        const SizedBox(height: 16),
+        ..._zoneTasks.map((zone) => _buildZoneSection(zone as Map<String, dynamic>)),
       ],
     );
   }
 
-  Widget _buildProgressBar() {
-    final progress = checkedCount / widget.order.items.length;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                S.inspectionProgress,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              Text(
-                '$checkedCount / ${widget.order.items.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(
-              progress == 1 ? AppColors.success : AppColors.pending,
-            ),
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItemCard(OrderItem item, int index) {
-    final isChecked = _checkedItems[item.productId] ?? false;
-
+  Widget _buildOrderInfo() {
+    final data = _orderData!;
+    final orderId = data['order_id']?.toString() ?? '';
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: isChecked ? AppColors.successWithOpacity(0.05) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isChecked ? AppColors.success : Colors.grey.shade300,
-          width: isChecked ? 2 : 1,
-        ),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -290,98 +198,23 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
           children: [
             Row(
               children: [
-                // Checkbox
-                Checkbox(
-                  value: isChecked,
-                  onChanged: (value) {
-                    setState(() {
-                      _checkedItems[item.productId] = value ?? false;
-                    });
-                  },
-                  activeColor: AppColors.success,
-                ),
-
-                // Index
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: isChecked ? AppColors.success : AppColors.pending,
-                  child: Text(
-                    '$index',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Product Name
+                const Icon(Icons.receipt_long, color: AppColors.primary),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    item.productName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    orderId,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    textDirection: TextDirection.ltr,
                   ),
                 ),
-
-                // Check Icon
-                if (isChecked)
-                  const Icon(Icons.check_circle, color: AppColors.success),
               ],
             ),
-
-            const SizedBox(height: 12),
-
-            // Product Details
+            const Divider(height: 24),
             Row(
               children: [
-                _buildDetailChip(Icons.qr_code, item.barcode),
+                _buildStatChip(Icons.map_outlined, S.zonesCount(_zoneTasks.length)),
                 const SizedBox(width: 12),
-                _buildDetailChip(
-                  Icons.inventory,
-                  '${item.pickedQuantity}/${item.requiredQuantity}',
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Locations
-            Wrap(
-              spacing: 8,
-              children: item.locations.map((loc) => Chip(
-                label: Text(loc, style: const TextStyle(fontSize: 12)),
-                backgroundColor: AppColors.primaryWithOpacity(0.1),
-                padding: EdgeInsets.zero,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              )).toList(),
-            ),
-
-            // Quick Actions
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showItemNoteDialog(item),
-                  icon: const Icon(Icons.note_add, size: 18),
-                  label: Text(S.note),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _reportItemIssue(item),
-                  icon: const Icon(Icons.report_problem, size: 18),
-                  label: Text(S.problem),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                  ),
-                ),
+                _buildStatChip(Icons.inventory, '$_pickedItems / $_totalItems ${S.product}'),
               ],
             ),
           ],
@@ -390,153 +223,181 @@ class _QCOrderDetailsScreenState extends State<QCOrderDetailsScreen> {
     );
   }
 
-  Widget _buildDetailChip(IconData icon, String text) {
+  Widget _buildStatChip(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-          ),
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  void _showItemNoteDialog(OrderItem item) {
-    final controller = TextEditingController(
-      text: _itemNotes[item.productId],
-    );
+  Widget _buildZoneSection(Map<String, dynamic> zone) {
+    final zoneCode = zone['zone_code']?.toString() ?? '';
+    final pickerName = zone['picker_name']?.toString() ?? '';
+    final totalItems = zone['total_items'] ?? 0;
+    final pickedItems = zone['picked_items'] ?? 0;
+    final packageCount = zone['package_count'] ?? 0;
+    final items = zone['items'] as List<dynamic>? ?? [];
+    final isComplete = pickedItems == totalItems && totalItems > 0;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(S.noteFor(item.productName)),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: S.enterNoteHere,
-            border: const OutlineInputBorder(),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isComplete ? AppColors.success.withValues(alpha: 0.3) : Colors.grey.shade300,
+        ),
+      ),
+      color: isComplete ? AppColors.success.withValues(alpha: 0.05) : null,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        leading: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isComplete ? AppColors.success : AppColors.primary,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            zoneCode,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(S.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _itemNotes[item.productId] = controller.text;
-              });
-              Navigator.pop(context);
-            },
-            child: Text(S.save),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _reportItemIssue(OrderItem item) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.report_problem, color: AppColors.error),
-            const SizedBox(width: 8),
-            Expanded(child: Text(S.reportIssueFor(item.productName))),
+            if (pickerName.isNotEmpty)
+              Text(pickerName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+            Text(
+              '$pickedItems/$totalItems ${S.product} - $packageCount ${S.bag}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        trailing: isComplete
+            ? const Icon(Icons.check_circle, color: AppColors.success, size: 22)
+            : null,
+        children: items.asMap().entries.map((entry) => _buildItemCard(entry.value, entry.key + 1)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(dynamic item, int index) {
+    final orderItem = OrderItem.fromTaskJson(item as Map<String, dynamic>);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      color: orderItem.isPicked ? AppColors.successWithOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: orderItem.isPicked ? AppColors.success : Colors.grey.shade300,
+          width: orderItem.isPicked ? 2 : 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
           children: [
-            _buildIssueOption(S.damagedProduct, Icons.broken_image),
-            _buildIssueOption(S.wrongQuantity, Icons.numbers),
-            _buildIssueOption(S.wrongProductItem, Icons.swap_horiz),
-            _buildIssueOption(S.missingProduct, Icons.search_off),
+            // Product image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: orderItem.imageUrl != null && orderItem.imageUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: orderItem.imageUrl!,
+                      width: 90,
+                      height: 90,
+                
+                      placeholder: (_, __) => Container(
+                        width: 56, height: 56,
+                        color: Colors.grey[200],
+                        child: const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: 56, height: 56,
+                        color: Colors.grey[200],
+                        child: Icon(Icons.image_not_supported, color: Colors.grey[400], size: 24),
+                      ),
+                    )
+                  : Container(
+                      width: 56, height: 56,
+                      color: Colors.grey[200],
+                      child: Icon(Icons.image, color: Colors.grey[400], size: 24),
+                    ),
+            ),
+            const SizedBox(width: 10),
+            // Index
+            // CircleAvatar(
+            //   radius: 13,
+            //   backgroundColor: orderItem.isPicked ? AppColors.success : AppColors.primary,
+            //   child: Text(
+            //     '$index',
+            //     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            //   ),
+            // ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    orderItem.productName+' '+ '('+(orderItem.unitName!.toString()+')'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      if (orderItem.barcode.isNotEmpty) ...[
+                        Icon(Icons.qr_code, size: 13, color: Colors.grey[500]),
+                        const SizedBox(width: 3),
+                        Text(orderItem.barcode, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        const SizedBox(width: 10),
+                      ],
+                      Icon(Icons.inventory, size: 13, color: Colors.grey[500]),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${orderItem.pickedQuantity}/${orderItem.requiredQuantity}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: orderItem.isPicked ? AppColors.success : Colors.grey[600],
+                          fontWeight: orderItem.isPicked ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (orderItem.locations.isNotEmpty && orderItem.locations.first.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 4,
+                      children: orderItem.locations.map((loc) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(loc, style: const TextStyle(fontSize: 10)),
+                      )).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (orderItem.isPicked)
+              const Icon(Icons.check_circle, color: AppColors.success, size: 20),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(S.cancel),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIssueOption(String label, IconData icon) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.error),
-      title: Text(label),
-      onTap: () {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.reported(label)),
-            backgroundColor: AppColors.pending,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Reject Button
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _rejectOrder,
-              icon: const Icon(Icons.cancel),
-              label: Text(S.reject),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Approve Button
-          Expanded(
-            flex: 2,
-            child: ElevatedButton.icon(
-              onPressed: allItemsChecked ? _approveOrder : null,
-              icon: const Icon(Icons.check_circle),
-              label: Text(allItemsChecked ? S.approveAndPrint : S.checkAllProducts),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

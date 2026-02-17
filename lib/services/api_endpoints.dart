@@ -38,6 +38,7 @@ class ApiEndpoints {
   static const String qcQueue = '/qc/queue';
   static const String qcChecks = '/qc/checks';
   static String qcCheckDetails(String checkId) => '/qc/checks/$checkId';
+  static String qcOrderDetails(String orderId) => '/qc/orders/$orderId';
   static String qcStart(String checkId) => '/qc/checks/$checkId/start';
   static String qcVerify(String checkId) => '/qc/checks/$checkId/verify';
 

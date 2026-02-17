@@ -20,6 +20,8 @@ class S {
   static String get bag => _t('كيس', 'bag');
   static String get exception => _t('استثناء', 'exception');
   static String get change => _t('تغيير', 'Change');
+  static String get search => _t('بحث...', 'Search...');
+  static String get orderDetails => _t('تفاصيل الطلب', 'Order Details');
 
   // ==================== Login ====================
   static String get warehouseManagement => _t('نظام إدارة المستودعات', 'Warehouse Management System');

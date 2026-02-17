@@ -9,6 +9,7 @@ import '../../providers/qc_provider.dart';
 import '../../models/qc_check_model.dart';
 import 'qc_account_screen.dart';
 import 'qc_check_details_screen.dart';
+import 'qc_order_details_screen.dart';
 
 class QCHomeScreen extends StatefulWidget {
   const QCHomeScreen({super.key});
@@ -167,6 +168,15 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QCOrderSearchScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadChecks,
@@ -361,7 +371,7 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: S.position,
-            
+
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -370,6 +380,22 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
                     onChanged: (value) {
                       setState(() => _positionQuery = value);
                     },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${S.remaining}: ${filteredChecks.length}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
@@ -401,12 +427,12 @@ class _QCHomeScreenState extends State<QCHomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          // Navigator.push(
-          //   context,
-          //   MaterialPageRoute(
-          //     builder: (_) => QCCheckDetailsScreen(check: check),
-          //   ),
-          // );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QCCheckDetailsScreen(check: check),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
