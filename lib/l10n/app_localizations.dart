@@ -232,6 +232,7 @@ class S {
   static String noResultsFor(String query) => _t('لا توجد نتائج لـ "$query"', 'No results for "$query"');
   static String zonePrefix(String name) => _t('زون $name', 'Zone $name');
   static String get assignedStatus => _t('معيّن', 'Assigned');
+  static String get zoneStats => _t('إحصائيات الزونات', 'Zone Stats');
 
   // ==================== Task Detail (Master) ====================
   static String get pickerLabel => _t('البيكر', 'Picker');

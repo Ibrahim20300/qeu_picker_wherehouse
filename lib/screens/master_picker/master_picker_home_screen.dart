@@ -5,10 +5,12 @@ import '../../constants/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/master_picker_provider.dart';
+import '../../services/api_endpoints.dart';
 import '../../services/invoice_service.dart';
 import 'master_picker_account_screen.dart';
 import 'pending_exceptions_screen.dart';
 import 'task_detail_screen.dart';
+import 'zone_stats_screen.dart';
 
 class MasterPickerHomeScreen extends StatefulWidget {
   const MasterPickerHomeScreen({super.key});
@@ -22,6 +24,9 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
   final _barcodeFocusNode = FocusNode();
   String _searchQuery = '';
   Timer? _refreshTimer;
+  String? _topPickerName;
+  String? _topPickerZone;
+  double _topPickerScore = 0;
 
   @override
   void initState() {
@@ -31,6 +36,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadTasks(hideLoad: true);
       _loadExceptions(hideLoad: true);
+      _loadTopPicker();
     });
 
    
@@ -40,6 +46,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
              _loadTasks();
               _loadExceptions(hideLoad: true);
+              _loadTopPicker();
       // _setupScanning();
     });
   }
@@ -86,6 +93,63 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
     final provider = context.read<MasterPickerProvider>();
     provider.init(authProvider.apiService);
     provider.fetchPendingExceptions(hideLoad: hideLoad);
+  }
+
+  Future<void> _loadTopPicker() async {
+    try {
+      final apiService = context.read<AuthProvider>().apiService;
+      final response = await apiService.get(ApiEndpoints.pickerZoneStats);
+      final body = apiService.handleResponse(response);
+
+      final List<dynamic> zones;
+      if (body['zones'] is List) {
+        zones = body['zones'] as List<dynamic>;
+      } else if (body['data'] is List) {
+        zones = body['data'] as List<dynamic>;
+      } else {
+        zones = [body];
+      }
+
+      String? bestName;
+      String? bestZone;
+      double bestScore = -1;
+
+      for (final zone in zones) {
+        final z = zone as Map<String, dynamic>;
+        final zoneName = z['zone_name']?.toString() ?? '';
+        final pickers = (z['pickers'] as List<dynamic>? ?? []);
+        for (final p in pickers) {
+          final picker = p as Map<String, dynamic>;
+          final score = _pickerScore(picker);
+          if (score > bestScore) {
+            bestScore = score;
+            bestName = picker['picker_name']?.toString() ?? '';
+            bestZone = zoneName;
+          }
+        }
+      }
+
+      if (mounted && bestName != null) {
+        setState(() {
+          _topPickerName = bestName;
+          _topPickerZone = bestZone;
+          _topPickerScore = bestScore;
+        });
+      }
+    } catch (_) {}
+  }
+
+  double _pickerScore(Map<String, dynamic> picker) {
+    final last12h = picker['last_12h'] as Map<String, dynamic>? ?? {};
+    final tasks = (last12h['tasks_completed'] as num?)?.toDouble() ?? 0;
+    final items = (last12h['items_picked'] as num?)?.toDouble() ?? 0;
+    final exceptions = (last12h['exceptions'] as num?)?.toDouble() ?? 0;
+    final avgTime = (last12h['avg_completion_time_minutes'] as num?)?.toDouble() ?? 0;
+    if (tasks == 0) return -1;
+    final speedScore = avgTime > 0 ? (20.0 - avgTime).clamp(0, 20) : 0.0;
+    final exceptionRate = tasks > 0 ? (exceptions / tasks) : 0.0;
+    final qualityScore = (1.0 - exceptionRate).clamp(0, 1) * 100;
+    return (tasks * 0.40) + (items * 0.25) + (speedScore * 0.20) + (qualityScore * 0.15);
   }
 
   String _convertArabicNumbers(String input) {
@@ -160,6 +224,15 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ZoneStatsScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTasks,
           ),
@@ -207,6 +280,39 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
               onFieldSubmitted: (value) => _onBarcodeScanned(value),
             ),
           ),
+          if (_topPickerName != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events, size: 22, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$_topPickerName ($_topPickerZone)',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber[900]),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _topPickerScore.toStringAsFixed(1),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber[800]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: Consumer<MasterPickerProvider>(
               builder: (context, provider, _) {
