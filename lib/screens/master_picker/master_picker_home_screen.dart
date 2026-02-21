@@ -120,6 +120,7 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
         final pickers = (z['pickers'] as List<dynamic>? ?? []);
         for (final p in pickers) {
           final picker = p as Map<String, dynamic>;
+          if (picker['is_online'] != true) continue; // online only
           final score = _pickerScore(picker);
           if (score > bestScore) {
             bestScore = score;
@@ -292,7 +293,9 @@ class _MasterPickerHomeScreenState extends State<MasterPickerHomeScreen> {
               child: Row(
                 children: [
                   const Icon(Icons.emoji_events, size: 22, color: Colors.amber),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.circle, size: 10, color: Colors.green),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '$_topPickerName ($_topPickerZone)',

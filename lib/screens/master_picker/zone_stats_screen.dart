@@ -149,8 +149,13 @@ class _ZoneStatsScreenState extends State<ZoneStatsScreen> {
     final onlineCount = zone['online_count'] ?? 0;
     final pickers = (zone['pickers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
 
-    // Sort by score descending
-    pickers.sort((a, b) => _pickerScore(b).compareTo(_pickerScore(a)));
+    // Sort: online first, then by score descending
+    pickers.sort((a, b) {
+      final aOnline = a['is_online'] == true ? 0 : 1;
+      final bOnline = b['is_online'] == true ? 0 : 1;
+      if (aOnline != bOnline) return aOnline.compareTo(bOnline);
+      return _pickerScore(b).compareTo(_pickerScore(a));
+    });
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
